@@ -1,0 +1,2182 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vaticinium – Kartenspiel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1b2d;
+    --bg-table: #163a2e;
+    --panel: #1c2c44;
+    --gold: #d8b35c;
+    --red: #c1453d;
+    --blue: #3d6fc1;
+    --green: #4a9d6e;
+    --yellow: #d4c25a;
+    --text: #ecebe6;
+    --muted: #93a0b8;
+    --card-bg: #f7f3e8;
+    --card-text: #1c1c1c;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: 'Georgia', 'Times New Roman', serif;
+    background: radial-gradient(ellipse at center, #1a2f4a 0%, var(--bg) 70%);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+  }
+
+  h1 {
+    font-family: 'Cinzel Decorative', 'Palatino Linotype', Georgia, serif;
+    letter-spacing: 6px;
+    font-size: 32px;
+    margin: 8px 0 4px;
+    color: var(--gold);
+    text-shadow: 0 0 24px rgba(216,179,92,0.45), 0 2px 8px rgba(0,0,0,0.7);
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 16px;
+    letter-spacing: 1px;
+  }
+
+  .top-bar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .btn-small {
+    background: transparent;
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    padding: 6px 14px;
+    border-radius: 16px;
+    font-size: 12px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .btn-small:hover {
+    background: var(--gold);
+    color: #1c1c1c;
+  }
+  .save-status {
+    font-size: 11px;
+    color: var(--muted);
+    min-width: 90px;
+  }
+
+  .table {
+    width: 100%;
+    max-width: 900px;
+    background: linear-gradient(180deg, var(--bg-table), #0f2620);
+    border-radius: 16px;
+    border: 1px solid #2a4538;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5), inset 0 0 60px rgba(0,0,0,0.3);
+    padding: 16px;
+    position: relative;
+  }
+
+  /* Scoreboard */
+  .scoreboard {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .player-card {
+    background: var(--panel);
+    border-radius: 10px;
+    padding: 18px 10px 10px;
+    text-align: center;
+    border: 1px solid #2c3f5c;
+    position: relative;
+    transition: box-shadow 0.3s;
+  }
+  .player-card .type-badge {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    font-size: 13px;
+    line-height: 1;
+  }
+  .player-card .type-badge.ai {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    background: rgba(0,0,0,0.2);
+  }
+  .player-card .type-badge.human {
+    font-size: 18px;
+  }
+  .player-card.active {
+    box-shadow: 0 0 0 2px var(--gold);
+  }
+  .player-card .name {
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    color: var(--gold);
+  }
+  .player-card .score {
+    font-size: 22px;
+    font-weight: bold;
+    margin: 4px 0;
+  }
+  .player-card .meta {
+    font-size: 13px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* Round info */
+  .round-info {
+    text-align: center;
+    margin-bottom: 14px;
+    font-size: 14px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+  .round-info .big {
+    font-size: 18px;
+    color: var(--text);
+    font-weight: bold;
+  }
+
+  /* Center area: trump, current trick */
+  .center-area {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 24px;
+    min-height: 145px;
+    margin: 10px 0;
+    flex-wrap: wrap;
+  }
+  .trump-box, .trick-box {
+    text-align: center;
+  }
+  .trump-box .label, .trick-box .label {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .trick-cards {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+    min-height: 90px;
+    align-items: center;
+  }
+  .trick-cards .trick-card-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .trick-cards .trick-card-wrap .who {
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  /* Card visuals */
+  .card {
+    width: 66px;
+    height: 94px;
+    border-radius: 9px;
+    background: var(--card-bg);
+    color: var(--card-text);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 22px;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.4);
+    border: 1px solid #d8d2c0;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .card.small {
+    width: 50px;
+    height: 72px;
+    font-size: 16px;
+  }
+  .card.large {
+    width: 84px;
+    height: 120px;
+    font-size: 28px;
+  }
+  .card.large .suit-icon { font-size: 34px; }
+  .card.large .special-letter { font-size: 34px; }
+  .card .suit-icon {
+    font-size: 26px;
+    line-height: 1;
+  }
+  .card.small .suit-icon { font-size: 19px; }
+  .card .special-letter {
+    font-family: 'Palatino Linotype', Georgia, serif;
+    font-size: 26px;
+    font-weight: bold;
+    line-height: 1;
+    letter-spacing: 1px;
+  }
+  .card.small .special-letter { font-size: 19px; }
+  .card.red { color: var(--red); }
+  .card.blue { color: var(--blue); }
+  .card.green { color: var(--green); }
+  .card.yellow { color: #b8a020; }
+  .red { color: var(--red); }
+  .blue { color: var(--blue); }
+  .green { color: var(--green); }
+  .yellow { color: #b8a020; }
+  .card.special {
+    background: linear-gradient(135deg, #2c2c3c, #4a3a5c);
+    color: var(--gold);
+  }
+  .card.special.narr {
+    background: linear-gradient(135deg, #3a2c2c, #5c4a3a);
+  }
+  .card.back {
+    background: linear-gradient(135deg, #2c3e5c, #1c2840);
+    border: 1px solid #3c5070;
+  }
+  .card.back::after {
+    content: "✦";
+    color: var(--gold);
+    font-size: 22px;
+    opacity: 0.6;
+  }
+  .card.playable {
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .card.playable:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.5);
+  }
+  .card.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* Hand */
+  .hand-area {
+    margin-top: 16px;
+  }
+  .hand-label {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+  .hand {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+    min-height: 90px;
+  }
+
+  /* Other players' hands (round 1 visibility) */
+  .opponent-hands {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin: 12px 0;
+  }
+  .opponent-hand-box {
+    background: var(--panel);
+    border-radius: 8px;
+    padding: 8px;
+    border: 1px solid #2c3f5c;
+    text-align: center;
+  }
+  .opponent-hand-box .oh-name {
+    font-size: 11px;
+    color: var(--gold);
+    margin-bottom: 6px;
+    letter-spacing: 1px;
+  }
+  .opponent-hand-box .oh-cards {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  /* Bid panel */
+  .bid-panel {
+    background: var(--panel);
+    border-radius: 10px;
+    padding: 16px;
+    margin: 14px 0;
+    text-align: center;
+    border: 1px solid #2c3f5c;
+  }
+  .bid-panel h3 {
+    margin: 0 0 10px;
+    color: var(--gold);
+    font-size: 16px;
+    letter-spacing: 1px;
+  }
+  .bid-panel .hint {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  .bid-options {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .bid-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 1px solid var(--gold);
+    background: transparent;
+    color: var(--gold);
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .bid-btn:hover:not(:disabled) {
+    background: var(--gold);
+    color: #1c1c1c;
+  }
+  .bid-btn:disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+    border-color: var(--muted);
+    color: var(--muted);
+  }
+
+  /* Log */
+  .log-area {
+    margin-top: 14px;
+    background: rgba(0,0,0,0.25);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--muted);
+    max-height: 110px;
+    overflow-y: auto;
+    line-height: 1.6;
+  }
+  .log-area .log-entry.highlight {
+    color: var(--gold);
+  }
+
+  /* Tischchat */
+  .chat-panel {
+    width: 100%;
+    max-width: 900px;
+    background: var(--panel);
+    border: 1px solid #2c3f5c;
+    border-radius: 12px;
+    margin-top: 10px;
+    padding: 10px 14px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+  }
+  .chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--gold);
+    font-size: 13px;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+  .chat-messages {
+    max-height: 160px;
+    overflow-y: auto;
+    background: rgba(0,0,0,0.25);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: 8px;
+  }
+  .chat-messages .chat-msg {
+    margin-bottom: 4px;
+  }
+  .chat-messages .chat-msg .chat-name {
+    color: var(--gold);
+    font-weight: bold;
+  }
+  .chat-messages .chat-msg .chat-time {
+    color: var(--muted);
+    font-size: 10px;
+    margin-left: 6px;
+  }
+  .chat-input-row {
+    display: flex;
+    gap: 8px;
+  }
+  .chat-input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid #2c3f5c;
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  .chat-badge {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--gold);
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+
+  /* Buttons */
+  .btn-main {
+    background: var(--gold);
+    color: #1c1c1c;
+    border: none;
+    padding: 10px 28px;
+    border-radius: 24px;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    cursor: pointer;
+    text-transform: uppercase;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    transition: transform 0.1s;
+  }
+  .btn-main:hover { transform: translateY(-2px); }
+  .btn-main:active { transform: translateY(0); }
+
+  /* Round summary table */
+  .summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+    font-size: 13px;
+  }
+  .summary-table th, .summary-table td {
+    padding: 6px 8px;
+    text-align: center;
+    border-bottom: 1px solid #2c3f5c;
+  }
+  .summary-table th {
+    color: var(--gold);
+    font-weight: normal;
+    letter-spacing: 1px;
+    font-size: 11px;
+    text-transform: uppercase;
+  }
+
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,15,25,0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+  }
+  .overlay .modal {
+    background: var(--panel);
+    border: 1px solid var(--gold);
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 90%;
+    width: 480px;
+    max-height: 85vh;
+    overflow-y: auto;
+    text-align: center;
+    box-shadow: 0 10px 50px rgba(0,0,0,0.6);
+  }
+  .overlay .modal.wide {
+    width: 620px;
+    text-align: left;
+  }
+  .overlay .modal.wide h2 {
+    text-align: center;
+  }
+  .rules-content h3 {
+    color: var(--gold);
+    font-size: 14px;
+    letter-spacing: 1px;
+    margin: 16px 0 6px;
+  }
+  .rules-content p, .rules-content li {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .rules-content ul {
+    margin: 4px 0 4px 18px;
+    padding: 0;
+  }
+  .rules-content .special {
+    background: rgba(216,179,92,0.08);
+    border-left: 3px solid var(--gold);
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin: 8px 0;
+  }
+  .overlay .modal h2 {
+    color: var(--gold);
+    margin-top: 0;
+  }
+  .hidden { display: none !important; }
+
+  /* Lobby */
+  .lobby-section {
+    margin: 14px 0;
+    text-align: center;
+  }
+  .lobby-section h2 {
+    color: var(--gold);
+    font-size: 18px;
+    margin: 0 0 10px;
+    letter-spacing: 1px;
+  }
+  .lobby-section p {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .lobby-input {
+    background: var(--bg);
+    border: 1px solid #2c3f5c;
+    color: var(--text);
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 18px;
+    letter-spacing: 3px;
+    text-align: center;
+    width: 140px;
+    text-transform: uppercase;
+    font-family: 'Courier New', monospace;
+  }
+  .lobby-name-input {
+    background: var(--bg);
+    border: 1px solid #2c3f5c;
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    width: 200px;
+    margin-bottom: 10px;
+  }
+  .lobby-divider {
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 2px;
+    margin: 18px 0;
+    text-transform: uppercase;
+  }
+  .table-code-box {
+    display: inline-block;
+    background: var(--bg);
+    border: 1px solid var(--gold);
+    border-radius: 8px;
+    padding: 10px 24px;
+    font-size: 28px;
+    letter-spacing: 8px;
+    font-family: 'Courier New', monospace;
+    color: var(--gold);
+    margin: 10px 0;
+  }
+  .seat-list {
+    list-style: none;
+    padding: 0;
+    margin: 14px 0;
+    text-align: left;
+    max-width: 320px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .seat-list li {
+    background: var(--panel);
+    border: 1px solid #2c3f5c;
+    border-radius: 8px;
+    padding: 8px 14px;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+  }
+  .seat-list .seat-tag {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  .winner-banner {
+    font-size: 13px;
+    color: var(--gold);
+    text-align: center;
+    margin-top: 8px;
+    min-height: 18px;
+    letter-spacing: 1px;
+  }
+
+  @media (max-width: 600px) {
+    .scoreboard { grid-template-columns: repeat(2, 1fr); }
+    .opponent-hands { grid-template-columns: 1fr; }
+    .card { width: 54px; height: 78px; font-size: 18px; }
+    .card .suit-icon { font-size: 20px; }
+    .card .special-letter { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Vaticinium</h1>
+<div class="subtitle" id="subtitle">Du gegen drei KI-Gegner — Stiche ansagen, Trumpf beachten, gewinnen</div>
+<div style="text-align:center; margin-bottom:6px;">
+  <button class="btn-small" onclick="showRules()">📖 Spielregeln</button>
+  <button class="btn-small" onclick="showHighscore()">🏆 Highscore</button>
+</div>
+
+<!-- ============ LOBBY ============ -->
+<div class="table" id="lobby">
+  <div id="lobbyContent"></div>
+</div>
+
+<!-- ============ GAME ============ -->
+<div class="top-bar hidden" id="topBar">
+  <button class="btn-small" id="saveBtn" onclick="manualSave()">💾 Speichern</button>
+  <button class="btn-small" onclick="confirmReset()">↺ Zurücksetzen / Verlassen</button>
+  <button class="btn-small hidden" id="endTableBtn" onclick="confirmEndTable()">🗑 Tisch beenden</button>
+  <button class="btn-small hidden" id="chatToggleBtn" onclick="toggleChat()">💬 Chat</button>
+  <span id="saveStatus" class="save-status"></span>
+  <span id="tableCodeDisplay" class="save-status"></span>
+  <span id="presenceInfo" class="save-status"></span>
+</div>
+
+<div class="table hidden" id="gameTable">
+
+  <div class="scoreboard" id="scoreboard"></div>
+
+  <div class="round-info" id="roundInfo"></div>
+
+  <div class="center-area">
+    <div class="trump-box">
+      <div class="label">Trumpf</div>
+      <div id="trumpCard"></div>
+    </div>
+    <div class="trick-box">
+      <div class="label">Aktueller Stich</div>
+      <div class="trick-cards" id="trickCards"></div>
+    </div>
+  </div>
+
+  <div class="winner-banner" id="winnerBanner"></div>
+
+  <div id="opponentHandsArea"></div>
+
+  <div id="bidPanel" class="bid-panel hidden"></div>
+
+  <div class="hand-area">
+    <div class="hand-label">Deine Hand</div>
+    <div class="hand" id="playerHand"></div>
+  </div>
+
+  <div class="log-area" id="logArea"></div>
+
+</div>
+
+<!-- ============ TISCHCHAT ============ -->
+<div class="chat-panel hidden" id="chatPanel">
+  <div class="chat-header">
+    <span>💬 Tischchat</span>
+    <button class="btn-small" onclick="toggleChat()">✕</button>
+  </div>
+  <div class="chat-messages" id="chatMessages"></div>
+  <div class="chat-input-row">
+    <input type="text" id="chatInput" class="chat-input" placeholder="Nachricht…" maxlength="200" onkeydown="if(event.key==='Enter') sendChatMessage();">
+    <button class="btn-small" onclick="sendChatMessage()">Senden</button>
+  </div>
+</div>
+
+<div class="overlay hidden" id="overlay">
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<!-- Socket.io (bereitgestellt durch den Server) -->
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+/* ============================================================
+   WIZARD — Spiel-Logik
+   ============================================================ */
+
+const SUITS = ['rot', 'blau', 'grün', 'gelb'];
+const SUIT_SYMBOL = { rot: '💧', blau: '🌊', grün: '🌳', gelb: '☀️' };
+const DROP_SVG = '<svg viewBox="0 0 24 24" width="1em" height="1em" style="vertical-align:-0.15em;"><path fill="currentColor" d="M12 2C12 2 5 10.5 5 15a7 7 0 0 0 14 0C19 10.5 12 2 12 2z"/></svg>';
+
+function suitIconHTML(suit) {
+  if (suit === 'rot') return DROP_SVG;
+  return SUIT_SYMBOL[suit];
+}
+const SUIT_CLASS = { rot: 'red', blau: 'blue', grün: 'green', gelb: 'yellow' };
+
+let PLAYER_NAMES = ['Du', 'Anke', 'Bruno', 'Carla'];
+const NUM_PLAYERS = 4;
+const MAX_ROUNDS = Math.floor(60 / NUM_PLAYERS); // 15
+
+function shuffleSeatsOffline() {
+  const base = ['Du', 'Anke', 'Bruno', 'Carla'];
+  for (let i = base.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [base[i], base[j]] = [base[j], base[i]];
+  }
+  PLAYER_NAMES = base;
+  MY_SEAT = PLAYER_NAMES.indexOf('Du');
+  SEATS = PLAYER_NAMES.map((n, i) => i === MY_SEAT ? 'human' : 'AI');
+}
+
+/* ---------- Multiplayer-Status ---------- */
+let MY_SEAT = 0;
+let MODE = 'offline';
+let TABLE_CODE = null;
+let IS_HOST = false;
+let CLIENT_ID = null;
+let SEATS = ['AI', 'AI', 'AI', 'AI'];
+let PENDING_SEATS = []; // Nachzügler: übernehmen nach laufender Runde
+
+let state = {
+  scores: [0,0,0,0],
+  round: 1,
+  dealerIndex: 0,
+  deck: [],
+  trumpCard: null,
+  trumpSuit: null,
+  hands: [[],[],[],[]],
+  bids: [null,null,null,null],
+  tricksWon: [0,0,0,0],
+  currentTrick: [],
+  leadSuit: null,
+  currentPlayer: 0,
+  trickLeader: 0,
+  phase: 'bidding',
+  biddingOrder: [],
+  biddingIndex: 0,
+};
+
+/* ============================================================
+   SOCKET.IO — Verbindungsverwaltung
+   ============================================================ */
+
+let socket = null;
+const ONLINE_SESSION_KEY = 'wizard_online_session_v1';
+
+function getClientId() {
+  let id = localStorage.getItem('wizard_client_id');
+  if (!id) {
+    id = 'c' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    localStorage.setItem('wizard_client_id', id);
+  }
+  return id;
+}
+
+function initSocket() {
+  if (socket && socket.connected) return;
+  socket = io();
+
+  socket.on('waiting_room', (data) => {
+    PLAYER_NAMES = data.names;
+    SEATS = data.seats;
+    TABLE_CODE = data.code;
+    renderSeatList(data);
+  });
+
+  socket.on('game_started', (data) => {
+    PLAYER_NAMES = data.names;
+    SEATS = data.seats;
+    showGameView();
+    document.getElementById('logArea').innerHTML = '';
+  });
+
+  socket.on('state_update', ({ state: newState, logHTML, mySeat, names, seats, connectedSeats, isHost, pendingSeats, allowLateJoin }) => {
+    MY_SEAT = mySeat;
+    PLAYER_NAMES = names;
+    SEATS = seats;
+    IS_HOST = isHost;
+    PENDING_SEATS = pendingSeats || [];
+    const wasRoundEnd = state.phase === 'roundEnd';
+    state = newState;
+    document.getElementById('logArea').innerHTML = logHTML || '';
+    const logEl = document.getElementById('logArea');
+    logEl.scrollTop = logEl.scrollHeight;
+    renderPresenceInfo(connectedSeats);
+    renderLateJoinBanner();
+    render();
+
+    if (state.phase === 'roundEnd' && state.lastRoundResults) {
+      showRoundSummary(state.lastRoundResults);
+    } else if (wasRoundEnd && state.phase !== 'roundEnd') {
+      document.getElementById('overlay').classList.add('hidden');
+    }
+  });
+
+  socket.on('chat_message', (msg) => {
+    renderChatMessage(msg);
+    if (!chatOpen) {
+      chatUnread++;
+      updateChatBadge();
+    }
+  });
+
+  socket.on('table_deleted', () => {
+    cleanupOnline();
+    showLobby();
+    const el = document.getElementById('lobbyContent');
+    el.insertAdjacentHTML('afterbegin', `<p style="color:var(--gold); font-size:13px; text-align:center; margin-bottom:10px;">Der Tisch wurde vom Spielleiter beendet.</p>`);
+  });
+}
+
+function cleanupOnline() {
+  localStorage.removeItem(ONLINE_SESSION_KEY);
+  MODE = 'offline';
+  TABLE_CODE = null;
+  IS_HOST = false;
+  MY_SEAT = 0;
+  chatOpen = false;
+  chatUnread = 0;
+  document.getElementById('chatToggleBtn').classList.add('hidden');
+  const chatPanel = document.getElementById('chatPanel');
+  if (chatPanel) chatPanel.classList.add('hidden');
+  const chatMsgs = document.getElementById('chatMessages');
+  if (chatMsgs) chatMsgs.innerHTML = '';
+  document.getElementById('overlay').classList.add('hidden');
+}
+
+function showGameView() {
+  document.getElementById('lobby').classList.add('hidden');
+  document.getElementById('topBar').classList.remove('hidden');
+  document.getElementById('gameTable').classList.remove('hidden');
+  document.getElementById('tableCodeDisplay').textContent = `Tisch ${TABLE_CODE}`;
+  document.getElementById('saveBtn').classList.add('hidden');
+  document.getElementById('chatToggleBtn').classList.remove('hidden');
+}
+
+/* ============================================================
+   LOBBY
+   ============================================================ */
+
+function showLobby() {
+  document.getElementById('lobby').classList.remove('hidden');
+  document.getElementById('topBar').classList.add('hidden');
+  document.getElementById('gameTable').classList.add('hidden');
+  document.getElementById('overlay').classList.add('hidden');
+  document.getElementById('subtitle').textContent = 'Spiele Solo gegen KI oder tritt einem Multiplayer-Tisch bei';
+  renderLobbyHome();
+}
+
+function renderLobbyHome() {
+  const el = document.getElementById('lobbyContent');
+  el.innerHTML = `
+    <div class="lobby-section">
+      <h2>Willkommen bei Vaticinium</h2>
+      <p>Spiele Solo gegen 3 KI-Gegner oder erstelle einen Multiplayer-Tisch,<br>
+      an dem Freunde Plätze von KI-Gegnern übernehmen können.</p>
+      <p style="font-size:11px; color:var(--muted);">Details zu beiden Modi findest du unter
+      "📖 Spielregeln" oben.</p>
+      <div style="margin-top:18px; display:flex; flex-direction:column; gap:10px; align-items:center;">
+        <button class="btn-main" onclick="startOfflineGame()">Solo spielen</button>
+        <div class="lobby-divider">— oder Multiplayer —</div>
+        <button class="btn-main" onclick="renderCreateTable()">Tisch erstellen</button>
+        <button class="btn-main" onclick="renderJoinTable()">Tisch beitreten</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderCreateTable() {
+  const el = document.getElementById('lobbyContent');
+  el.innerHTML = `
+    <div class="lobby-section">
+      <h2>Tisch erstellen</h2>
+      <p>Gib deinen Namen ein. Du übernimmst Sitzplatz 1 und kannst das Spiel starten,<br>
+      sobald genug Mitspieler beigetreten sind (freie Plätze werden mit KI gefüllt).</p>
+      <input type="text" id="hostNameInput" class="lobby-name-input" placeholder="Dein Name" maxlength="16" value="Spieler">
+      <div style="margin-top:12px; display:flex; align-items:flex-start; justify-content:center; gap:8px; font-size:13px; color:var(--muted); max-width:340px; margin-left:auto; margin-right:auto; text-align:left;">
+        <input type="checkbox" id="allowLateJoinCheck" style="margin-top:3px; width:16px; height:16px; accent-color:var(--gold); cursor:pointer; flex-shrink:0;">
+        <label for="allowLateJoinCheck" style="cursor:pointer;">Nachträgliches Beitreten erlauben
+          <span style="display:block; font-size:11px; margin-top:2px;">Neue Spieler können KI-Plätze übernehmen solange noch mind. 4 Runden verbleiben. Die laufende Runde spielt die KI noch zu Ende.</span>
+        </label>
+      </div>
+      <div style="margin-top:14px; display:flex; gap:10px; justify-content:center;">
+        <button class="btn-main" onclick="createTable()">Tisch erstellen</button>
+        <button class="btn-small" onclick="renderLobbyHome()">Zurück</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderJoinTable() {
+  const el = document.getElementById('lobbyContent');
+  el.innerHTML = `
+    <div class="lobby-section">
+      <h2>Tisch beitreten</h2>
+      <p>Gib den 4-stelligen Tischcode und deinen Namen ein.</p>
+      <div><input type="text" id="joinCodeInput" class="lobby-input" placeholder="0000" maxlength="4" inputmode="numeric"></div>
+      <input type="text" id="joinNameInput" class="lobby-name-input" placeholder="Dein Name" maxlength="16" value="Spieler" style="margin-top:10px;">
+      <div id="joinError" style="color:var(--red); font-size:12px; margin-top:6px;"></div>
+      <div style="margin-top:10px; display:flex; gap:10px; justify-content:center;">
+        <button class="btn-main" onclick="joinTable()">Beitreten</button>
+        <button class="btn-small" onclick="renderLobbyHome()">Zurück</button>
+      </div>
+    </div>
+  `;
+}
+
+/* ---------- Offline starten ---------- */
+function startOfflineGame() {
+  MODE = 'offline';
+  MY_SEAT = 0;
+  IS_HOST = true;
+  SEATS = ['human', 'AI', 'AI', 'AI'];
+  PLAYER_NAMES = ['Du', 'Anke', 'Bruno', 'Carla'];
+
+  document.getElementById('lobby').classList.add('hidden');
+  document.getElementById('topBar').classList.remove('hidden');
+  document.getElementById('gameTable').classList.remove('hidden');
+  document.getElementById('tableCodeDisplay').textContent = '';
+  document.getElementById('saveBtn').classList.remove('hidden');
+
+  const saved = loadGame();
+  if (saved && saved.state) {
+    showResumePrompt(saved);
+  } else {
+    shuffleSeatsOffline();
+    state.dealerIndex = 0;
+    document.getElementById('logArea').innerHTML = '';
+    log('<span class="log-entry highlight">— Willkommen bei Vaticinium! —</span>');
+    log('Du spielst gegen Anke, Bruno und Carla. Viel Glück!');
+    startRound();
+  }
+}
+
+/* ---------- Online: Tisch erstellen ---------- */
+function createTable() {
+  const name = (document.getElementById('hostNameInput').value || 'Spieler').trim().slice(0, 16) || 'Spieler';
+  CLIENT_ID = getClientId();
+  initSocket();
+
+  const allowLateJoin = !!(document.getElementById('allowLateJoinCheck')?.checked);
+  socket.emit('create_table', { name, clientId: CLIENT_ID, allowLateJoin }, (res) => {
+    if (!res || res.error) {
+      alert('Tisch konnte nicht erstellt werden: ' + (res?.error || 'Unbekannter Fehler'));
+      return;
+    }
+    TABLE_CODE = res.code;
+    MY_SEAT = res.seat;
+    IS_HOST = true;
+    MODE = 'online';
+    PLAYER_NAMES = res.names;
+    SEATS = res.seats;
+    localStorage.setItem(ONLINE_SESSION_KEY, JSON.stringify({ code: TABLE_CODE, clientId: CLIENT_ID }));
+    renderWaitingRoom(res);
+  });
+}
+
+/* ---------- Online: Tisch beitreten ---------- */
+function joinTable() {
+  const code = (document.getElementById('joinCodeInput').value || '').trim();
+  const name = (document.getElementById('joinNameInput').value || 'Spieler').trim().slice(0, 16) || 'Spieler';
+  const errEl = document.getElementById('joinError');
+  errEl.textContent = '';
+
+  if (!/^[0-9]{4}$/.test(code)) {
+    errEl.textContent = 'Bitte einen 4-stelligen Code eingeben.';
+    return;
+  }
+
+  CLIENT_ID = getClientId();
+  initSocket();
+
+  socket.emit('join_table', { code, name, clientId: CLIENT_ID }, (res) => {
+    if (res.error) {
+      document.getElementById('joinError').textContent = res.error;
+      return;
+    }
+    TABLE_CODE = res.code;
+    MY_SEAT = res.seat;
+    IS_HOST = res.isHost || false;
+    MODE = 'online';
+    PLAYER_NAMES = res.names;
+    SEATS = res.seats;
+    localStorage.setItem(ONLINE_SESSION_KEY, JSON.stringify({ code: TABLE_CODE, clientId: CLIENT_ID }));
+    if (res.lateJoin) {
+      // Spiel läuft bereits — direkt ins Spiel wechseln
+      showGameView();
+      // state_update kommt sofort vom Server; Hinweis wird dort gerendert
+    } else {
+      renderWaitingRoom(res);
+    }
+  });
+}
+
+/* ---------- Warteraum ---------- */
+function renderWaitingRoom(data) {
+  const el = document.getElementById('lobbyContent');
+  el.innerHTML = `
+    <div class="lobby-section">
+      <h2>Warteraum</h2>
+      <p>Tischcode (an Freunde weitergeben):</p>
+      <div class="table-code-box">${TABLE_CODE}</div>
+      <ul class="seat-list" id="seatList"></ul>
+      <div id="waitingActions" style="margin-top:10px;"></div>
+      <div style="margin-top:14px;">
+        <button class="btn-small" onclick="location.reload()">🔄 Seite neu laden</button>
+      </div>
+    </div>
+  `;
+  if (data) renderSeatList(data);
+}
+
+function renderSeatList(data) {
+  const el = document.getElementById('seatList');
+  if (!el) return;
+  el.innerHTML = (data.seats || SEATS).map((s, i) => {
+    const isMe = s === `h:${CLIENT_ID}`;
+    const tag = s === 'AI' ? 'frei (KI)' : (isMe ? 'du' : 'belegt');
+    return `<li><span>${escapeHtml((data.names || PLAYER_NAMES)[i])}${isMe ? ' (du)' : ''}</span><span class="seat-tag">${tag}</span></li>`;
+  }).join('');
+
+  const actionsEl = document.getElementById('waitingActions');
+  if (!actionsEl) return;
+  if (IS_HOST) {
+    actionsEl.innerHTML = `<button class="btn-main" onclick="hostStartGame()">Spiel starten</button>
+      <div style="font-size:11px; color:var(--muted); margin-top:6px;">Freie Plätze werden beim Start automatisch von KI übernommen.</div>`;
+  } else {
+    actionsEl.innerHTML = `<p style="color:var(--muted); font-size:12px;">Warte, bis der Spielleiter das Spiel startet…</p>`;
+  }
+}
+
+/* ---------- Host: Spiel starten ---------- */
+function hostStartGame() {
+  if (!socket) return;
+  socket.emit('start_game');
+}
+
+/* ---------- Tisch verlassen ---------- */
+function leaveTable() {
+  if (socket) socket.emit('leave_table');
+  cleanupOnline();
+  showLobby();
+}
+
+/* ---------- Tisch beenden (Host) ---------- */
+function endTable() {
+  if (socket) socket.emit('end_table');
+  cleanupOnline();
+  showLobby();
+}
+
+/* ---------- Late-Join-Banner ---------- */
+function renderLateJoinBanner() {
+  let el = document.getElementById('lateJoinBanner');
+  const amPending = PENDING_SEATS.includes(MY_SEAT);
+  if (amPending) {
+    if (!el) {
+      const gameTable = document.getElementById('gameTable');
+      const div = document.createElement('div');
+      div.id = 'lateJoinBanner';
+      div.style.cssText = 'background:rgba(216,179,92,0.12); border:1px solid var(--gold); border-radius:8px; padding:10px 16px; margin-bottom:12px; font-size:13px; color:var(--gold); text-align:center; letter-spacing:0.5px;';
+      div.textContent = '🙋 Du bist beigetreten! Die KI übernimmt deinen Platz für diese Runde — ab der nächsten Runde spielst du selbst.';
+      gameTable.insertBefore(div, gameTable.firstChild);
+    }
+  } else if (el) {
+    el.remove();
+  }
+}
+
+/* ---------- Presence-Anzeige ---------- */
+function renderPresenceInfo(connectedSeats) {
+  const el = document.getElementById('presenceInfo');
+  if (!el || !connectedSeats) { if (el) el.innerHTML = ''; return; }
+  const parts = [];
+  for (let i = 0; i < NUM_PLAYERS; i++) {
+    if (SEATS[i] === 'AI') continue;
+    const dot = connectedSeats[i] ? '🟢' : '⚪';
+    parts.push(`${dot} ${escapeHtml(PLAYER_NAMES[i])}`);
+  }
+  el.innerHTML = parts.join('&nbsp;&nbsp;');
+}
+
+/* ---------- Tischchat ---------- */
+let chatOpen = false;
+let chatUnread = 0;
+
+function toggleChat() {
+  chatOpen = !chatOpen;
+  const panel = document.getElementById('chatPanel');
+  if (chatOpen) {
+    panel.classList.remove('hidden');
+    chatUnread = 0;
+    updateChatBadge();
+    setTimeout(() => {
+      const msgs = document.getElementById('chatMessages');
+      msgs.scrollTop = msgs.scrollHeight;
+      document.getElementById('chatInput').focus();
+    }, 50);
+  } else {
+    panel.classList.add('hidden');
+  }
+}
+
+function updateChatBadge() {
+  const btn = document.getElementById('chatToggleBtn');
+  if (!btn) return;
+  const existing = btn.querySelector('.chat-badge');
+  if (chatUnread > 0 && !chatOpen) {
+    if (!existing) btn.insertAdjacentHTML('beforeend', '<span class="chat-badge"></span>');
+  } else if (existing) {
+    existing.remove();
+  }
+}
+
+function renderChatMessage(msg) {
+  const el = document.getElementById('chatMessages');
+  if (!el) return;
+  const time = msg.time ? new Date(msg.time).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '';
+  const div = document.createElement('div');
+  div.className = 'chat-msg';
+  div.innerHTML = `<span class="chat-name">${escapeHtml(msg.name || '?')}:</span> ${escapeHtml(msg.text || '')}<span class="chat-time">${time}</span>`;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+function sendChatMessage() {
+  const input = document.getElementById('chatInput');
+  const text = (input.value || '').trim();
+  if (!text || MODE !== 'online' || !socket) return;
+  socket.emit('chat', { text });
+  input.value = '';
+  input.focus();
+}
+
+/* ============================================================
+   OFFLINE SPIELLOGIK
+   (Nur im offline-Modus verwendet — online läuft alles auf dem Server)
+   ============================================================ */
+
+function createDeck() {
+  const deck = [];
+  for (const suit of SUITS) {
+    for (let v = 1; v <= 13; v++) deck.push({ type: 'number', suit, value: v });
+  }
+  for (let i = 0; i < 4; i++) {
+    deck.push({ type: 'wizard', id: 'Z' + i });
+    deck.push({ type: 'jester', id: 'N' + i });
+  }
+  return deck;
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function cardLabel(card) {
+  if (card.type === 'wizard') return 'Z';
+  if (card.type === 'jester') return 'N';
+  return String(card.value);
+}
+
+function startRound() {
+  state.phase = 'bidding';
+  state.deck = shuffle(createDeck());
+  state.hands = [[], [], [], []];
+  state.bids = [null, null, null, null];
+  state.tricksWon = [0, 0, 0, 0];
+  state.currentTrick = [];
+  state.leadSuit = null;
+  state.winnerBanner = '';
+  state.highscoreSubmitted = false;
+
+  for (let p = 0; p < NUM_PLAYERS; p++)
+    for (let c = 0; c < state.round; c++)
+      state.hands[p].push(state.deck.pop());
+
+  state.trumpCard = state.deck.length > 0 ? state.deck.pop() : null;
+
+  if (!state.trumpCard) {
+    state.trumpSuit = null;
+  } else if (state.trumpCard.type === 'number') {
+    state.trumpSuit = state.trumpCard.suit;
+  } else if (state.trumpCard.type === 'wizard') {
+    state.trumpSuit = SUITS[Math.floor(Math.random() * SUITS.length)];
+    log(`Der Dealer wählt ${state.trumpSuit} als Trumpf (Zauberer aufgedeckt).`);
+  } else {
+    state.trumpSuit = null;
+  }
+
+  for (let p = 0; p < NUM_PLAYERS; p++) sortHand(state.hands[p]);
+
+  state.biddingOrder = [];
+  for (let i = 1; i <= NUM_PLAYERS; i++)
+    state.biddingOrder.push((state.dealerIndex + i) % NUM_PLAYERS);
+  state.biddingIndex = 0;
+  state.trickLeader = state.biddingOrder[0];
+  state.currentPlayer = state.trickLeader;
+
+  log(`<span class="log-entry highlight">— Runde ${state.round} (${state.round} Karte${state.round > 1 ? 'n' : ''} pro Spieler) —</span>`);
+
+  render();
+  processBidding();
+}
+
+function sortHand(hand) {
+  const trump = state.trumpSuit;
+  function sortKey(card) {
+    if (card.type === 'jester') return { group: 0, suitRank: 0, value: 0 };
+    if (card.type === 'wizard') return { group: 3, suitRank: 0, value: 0 };
+    const isTrump = card.suit === trump;
+    return { group: isTrump ? 2 : 1, suitRank: SUITS.indexOf(card.suit), value: card.value };
+  }
+  hand.sort((a, b) => {
+    const ka = sortKey(a), kb = sortKey(b);
+    if (ka.group !== kb.group) return ka.group - kb.group;
+    if (ka.group === 1) {
+      if (ka.suitRank !== kb.suitRank) return ka.suitRank - kb.suitRank;
+      return ka.value - kb.value;
+    }
+    if (ka.group === 2) return ka.value - kb.value;
+    return 0;
+  });
+}
+
+function possibleTricksTotal() { return state.round; }
+function sumBidsExcept(skipIndex) {
+  let sum = 0;
+  for (let i = 0; i < NUM_PLAYERS; i++)
+    if (i !== skipIndex && state.bids[i] !== null) sum += state.bids[i];
+  return sum;
+}
+function isLastBidder(playerIndex) {
+  return state.biddingOrder[state.biddingOrder.length - 1] === playerIndex;
+}
+function forbiddenBidForLastPlayer(playerIndex) {
+  if (!isLastBidder(playerIndex)) return null;
+  const others = sumBidsExcept(playerIndex);
+  const forbidden = possibleTricksTotal() - others;
+  if (forbidden >= 0 && forbidden <= state.round) return forbidden;
+  return null;
+}
+
+function processBidding() {
+  if (state.biddingIndex >= NUM_PLAYERS) {
+    state.phase = 'playing';
+    log(`Vorhersagen: ${state.bids.map((b, i) => escapeHtml(PLAYER_NAMES[i]) + ': ' + b).join(', ')}`);
+    render();
+    setTimeout(() => playTurn(), 600);
+    return;
+  }
+  const playerIndex = state.biddingOrder[state.biddingIndex];
+  if (isAISeat(playerIndex)) {
+    setTimeout(() => {
+      const bid = aiChooseBid(playerIndex);
+      applyBid(playerIndex, bid);
+    }, 500);
+  } else {
+    render();
+  }
+}
+
+function isAISeat(seatIndex) {
+  if (MODE === 'offline') return seatIndex !== MY_SEAT;
+  return SEATS[seatIndex] === 'AI';
+}
+function isHumanSeat(seatIndex) { return !isAISeat(seatIndex); }
+
+function submitHumanBid(bid) {
+  if (MODE === 'online') {
+    if (!socket) return;
+    socket.emit('action', { type: 'bid', value: bid });
+    document.getElementById('bidPanel').classList.add('hidden');
+    return;
+  }
+  applyBid(MY_SEAT, bid);
+}
+
+function applyBid(seat, bid) {
+  state.bids[seat] = bid;
+  { const p = pv(seat, 'sagt'); log(`${p.name} ${p.verb} <b>${bid}</b> Stich${bid === 1 ? '' : 'e'} an.`); }
+  state.biddingIndex++;
+  document.getElementById('bidPanel').classList.add('hidden');
+  processBidding();
+}
+
+function estimateTricks(playerIndex) {
+  const hand = state.hands[playerIndex];
+  const round = state.round;
+  let expected = 0, trumpCount = 0;
+  for (const card of hand) {
+    if (card.type === 'wizard') { expected += 1; }
+    else if (card.type === 'jester') { /* 0 */ }
+    else if (card.suit === state.trumpSuit) { trumpCount++; expected += 0.5 + (card.value / 13) * 0.5; }
+    else { expected += (card.value / 13) * (0.5 / Math.max(1, round * 0.5)); }
+  }
+  if (trumpCount > 1) expected += (trumpCount - 1) * 0.2;
+  return expected;
+}
+
+function aiChooseBid(playerIndex) {
+  let bid = Math.round(estimateTricks(playerIndex));
+  bid = Math.max(0, Math.min(state.round, bid));
+  if (Math.random() < 0.15) bid = Math.max(0, Math.min(state.round, bid + (Math.random() < 0.5 ? -1 : 1)));
+  if (isLastBidder(playerIndex)) {
+    const forbidden = forbiddenBidForLastPlayer(playerIndex);
+    if (forbidden !== null && bid === forbidden)
+      bid = bid < state.round ? bid + 1 : Math.max(0, bid - 1);
+  }
+  return bid;
+}
+
+function legalCardIndices(playerIndex) {
+  const hand = state.hands[playerIndex];
+  if (state.currentTrick.length === 0 || state.leadSuit === null) return hand.map((_, i) => i);
+  const hasLeadSuit = hand.some(c => c.type === 'number' && c.suit === state.leadSuit);
+  if (!hasLeadSuit) return hand.map((_, i) => i);
+  return hand.map((c, i) => ({ c, i })).filter(({ c }) => c.type !== 'number' || c.suit === state.leadSuit).map(({ i }) => i);
+}
+
+function playCard(playerIndex, cardIndex) {
+  const card = state.hands[playerIndex].splice(cardIndex, 1)[0];
+  state.currentTrick.push({ playerIndex, card });
+
+  if (state.currentTrick.length === 1) {
+    state.leadSuit = card.type === 'number' ? card.suit : null;
+  } else if (state.leadSuit === null && card.type === 'number') {
+    const hasWizardInTrick = state.currentTrick.some(t => t.card.type === 'wizard');
+    if (!hasWizardInTrick) state.leadSuit = card.suit;
+  }
+
+  const label = card.type === 'wizard' ? 'Zauberer' : card.type === 'jester' ? 'Narr'
+    : `${cardLabel(card)} <span class="${SUIT_CLASS[card.suit]}" style="display:inline-flex; align-items:center;">${suitIconHTML(card.suit)}</span>`;
+  { const p = pv(playerIndex, 'spielt'); log(`${p.name} ${p.verb} ${label}.`); }
+
+  render();
+
+  if (state.currentTrick.length === NUM_PLAYERS) {
+    setTimeout(resolveTrick, 1000);
+  } else {
+    state.currentPlayer = (playerIndex + 1) % NUM_PLAYERS;
+    setTimeout(() => playTurn(), 500);
+  }
+}
+
+function playTurn() {
+  if (state.phase !== 'playing') return;
+  const playerIndex = state.currentPlayer;
+  if (isHumanSeat(playerIndex)) {
+    if (state.hands[playerIndex].length === 1) {
+      setTimeout(() => playCard(playerIndex, 0), 500);
+      return;
+    }
+    render();
+    return;
+  }
+  setTimeout(() => {
+    const cardIndex = aiChooseCard(playerIndex);
+    playCard(playerIndex, cardIndex);
+  }, 600);
+}
+
+function trickWinner() {
+  const plays = state.currentTrick;
+  const wizardPlay = plays.find(p => p.card.type === 'wizard');
+  if (wizardPlay) return wizardPlay.playerIndex;
+  const nonJesters = plays.filter(p => p.card.type !== 'jester');
+  if (nonJesters.length === 0) return plays[0].playerIndex;
+  const trumps = nonJesters.filter(p => p.card.suit === state.trumpSuit);
+  const pool = trumps.length > 0 ? trumps : nonJesters.filter(p => p.card.suit === state.leadSuit);
+  const relevantPool = pool.length > 0 ? pool : nonJesters;
+  let best = relevantPool[0];
+  for (const p of relevantPool) if (p.card.value > best.card.value) best = p;
+  return best.playerIndex;
+}
+
+function resolveTrick() {
+  const winner = trickWinner();
+  state.tricksWon[winner]++;
+  const _pw = pv(winner, 'gewinnt');
+  log(`<span class="log-entry highlight">${_pw.name} ${_pw.verb} den Stich.</span>`);
+  state.winnerBanner = `${PLAYER_NAMES[winner]} gewinnt den Stich`;
+  render();
+
+  setTimeout(() => {
+    state.currentTrick = [];
+    state.leadSuit = null;
+    state.winnerBanner = '';
+    if (state.hands.every(h => h.length === 0)) {
+      endRound();
+    } else {
+      state.trickLeader = winner;
+      state.currentPlayer = winner;
+      render();
+      playTurn();
+    }
+  }, 1200);
+}
+
+function aiChooseCard(playerIndex) {
+  const hand = state.hands[playerIndex];
+  const legal = legalCardIndices(playerIndex);
+  const bid = state.bids[playerIndex];
+  const won = state.tricksWon[playerIndex];
+  const needsMore = won < bid;
+
+  function wouldWin(cardIdx) {
+    const testTrick = state.currentTrick.concat([{ playerIndex, card: hand[cardIdx] }]);
+    const saved = state.currentTrick;
+    state.currentTrick = testTrick;
+    const w = trickWinner();
+    state.currentTrick = saved;
+    return w === playerIndex;
+  }
+
+  function strength(card) {
+    if (card.type === 'wizard') return 100;
+    if (card.type === 'jester') return -100;
+    if (card.suit === state.trumpSuit) return 50 + card.value;
+    if (state.leadSuit && card.suit === state.leadSuit) return card.value;
+    return card.value - 20;
+  }
+
+  const options = legal.map(i => ({ i, card: hand[i], s: strength(hand[i]) }));
+  options.sort((a, b) => a.s - b.s);
+
+  let chosen;
+  if (needsMore) {
+    if (state.currentTrick.length === 0) {
+      chosen = options.length - 1;
+    } else {
+      const winningOptions = options.filter(o => wouldWin(o.i));
+      chosen = winningOptions.length > 0 ? options.indexOf(winningOptions[0]) : 0;
+    }
+  } else {
+    const losingOptions = options.filter(o => !wouldWin(o.i));
+    chosen = losingOptions.length > 0 ? options.indexOf(losingOptions[0]) : 0;
+  }
+
+  if (options.length > 1 && Math.random() < 0.08) {
+    const neighbor = chosen + (Math.random() < 0.5 ? -1 : 1);
+    if (neighbor >= 0 && neighbor < options.length) chosen = neighbor;
+  }
+
+  return options[chosen].i;
+}
+
+function endRound() {
+  state.phase = 'roundEnd';
+  const results = [];
+  for (let p = 0; p < NUM_PLAYERS; p++) {
+    const bid = state.bids[p], won = state.tricksWon[p];
+    const points = bid === won ? 20 + won * 10 : -10 * Math.abs(bid - won);
+    state.scores[p] += points;
+    results.push({ name: PLAYER_NAMES[p], bid, won, points, total: state.scores[p] });
+    log(`${escapeHtml(PLAYER_NAMES[p])}: Vorhersage ${bid}, Stiche ${won} → <b>${points >= 0 ? '+' : ''}${points}</b> Punkte (Gesamt: ${state.scores[p]})`);
+  }
+  state.lastRoundResults = results;
+  if (MODE === 'offline') saveGame(false);
+  showRoundSummary(results);
+}
+
+function showRoundSummary(results) {
+  const isLastRound = state.round >= MAX_ROUNDS;
+  let html = `<h2>Runde ${state.round} – Ergebnis</h2>`;
+  html += `<table class="summary-table"><tr><th>Spieler</th><th>Vorhersage</th><th>Stiche</th><th>Punkte</th><th>Gesamt</th></tr>`;
+  for (const r of results) {
+    html += `<tr><td>${escapeHtml(r.name)}</td><td>${r.bid}</td><td>${r.won}</td><td>${r.points >= 0 ? '+' : ''}${r.points}</td><td>${r.total}</td></tr>`;
+  }
+  html += `</table>`;
+
+  const iAmHost = MODE === 'offline' || IS_HOST;
+  let triggerHighscoreEntry = false;
+
+  if (isLastRound) {
+    const maxScore = Math.max(...state.scores);
+    const winners = PLAYER_NAMES.filter((_, i) => state.scores[i] === maxScore);
+    html += `<p style="color:var(--gold); font-size:18px; margin-top:14px;">🏆 ${winners.join(', ')} gewinnt mit ${maxScore} Punkten!</p>`;
+    if (iAmHost) {
+      html += `<button class="btn-main" onclick="newGame()">Neues Spiel</button>`;
+    } else {
+      html += `<p style="color:var(--muted); font-size:12px;">Warte auf den Spielleiter für ein neues Spiel…</p>`;
+    }
+    if (MODE === 'offline') {
+      clearSave();
+      triggerHighscoreEntry = state.scores[MY_SEAT] === maxScore;
+    }
+  } else {
+    if (iAmHost) {
+      html += `<button class="btn-main" onclick="nextRound()">Nächste Runde</button>`;
+    } else {
+      html += `<p style="color:var(--muted); font-size:12px;">Warte auf den Spielleiter für die nächste Runde…</p>`;
+    }
+  }
+
+  const modalEl = document.getElementById('modalContent');
+  modalEl.classList.remove('wide');
+  modalEl.innerHTML = html;
+  document.getElementById('overlay').classList.remove('hidden');
+
+  if (triggerHighscoreEntry) maybeShowHighscoreEntry(state.scores[MY_SEAT]);
+}
+
+function nextRound() {
+  if (MODE === 'online') {
+    if (socket) socket.emit('next_round');
+    document.getElementById('overlay').classList.add('hidden');
+    return;
+  }
+  document.getElementById('overlay').classList.add('hidden');
+  state.round++;
+  state.dealerIndex = (state.dealerIndex + 1) % NUM_PLAYERS;
+  startRound();
+}
+
+function newGame() {
+  if (MODE === 'online') {
+    if (socket) socket.emit('new_game');
+    document.getElementById('overlay').classList.add('hidden');
+    return;
+  }
+  document.getElementById('overlay').classList.add('hidden');
+  state.scores = [0, 0, 0, 0];
+  state.round = 1;
+  shuffleSeatsOffline();
+  state.dealerIndex = 0;
+  log('<span class="log-entry highlight">— Neues Spiel gestartet —</span>');
+  startRound();
+}
+
+/* ---------- Logging ---------- */
+function log(msg) {
+  const logArea = document.getElementById('logArea');
+  const div = document.createElement('div');
+  div.innerHTML = msg;
+  logArea.appendChild(div);
+  logArea.scrollTop = logArea.scrollHeight;
+}
+
+/* ---------- Rendering ---------- */
+function updateSubtitle() {
+  const el = document.getElementById('subtitle');
+  if (!el) return;
+  if (MODE === 'offline') {
+    el.textContent = 'Du gegen drei KI-Gegner — Stiche ansagen, Trumpf beachten, gewinnen';
+  } else {
+    const others = PLAYER_NAMES.filter((_, i) => i !== MY_SEAT);
+    el.textContent = `Du (${PLAYER_NAMES[MY_SEAT]}) gegen ${others.join(', ')} — Tisch ${TABLE_CODE}`;
+  }
+  const endBtn = document.getElementById('endTableBtn');
+  if (endBtn) {
+    if (MODE === 'online' && IS_HOST) endBtn.classList.remove('hidden');
+    else endBtn.classList.add('hidden');
+  }
+}
+
+function render() {
+  updateSubtitle();
+  renderScoreboard();
+  renderRoundInfo();
+  renderTrump();
+  renderTrick();
+  renderOpponentHands();
+  renderBidPanel();
+  renderPlayerHand();
+  document.getElementById('winnerBanner').textContent = state.winnerBanner || '';
+
+  if (MODE === 'offline') saveGame(false);
+}
+
+function renderCard(card, opts = {}) {
+  const { small = false, large = false, faceDown = false, playable = false, disabled = false, dataIndex = null } = opts;
+  if (faceDown) return `<div class="card back${small ? ' small' : ''}${large ? ' large' : ''}"></div>`;
+
+  let cls = 'card';
+  if (small) cls += ' small';
+  if (large) cls += ' large';
+  if (card.type === 'wizard') cls += ' special';
+  else if (card.type === 'jester') cls += ' special narr';
+  else cls += ' ' + SUIT_CLASS[card.suit];
+  if (playable) cls += ' playable';
+  if (disabled) cls += ' disabled';
+
+  const attrs = dataIndex !== null ? `data-index="${dataIndex}"` : '';
+
+  if (card.type === 'wizard') return `<div class="${cls}" ${attrs}><div class="suit-icon">🧙</div><div class="special-letter">Z</div></div>`;
+  if (card.type === 'jester') return `<div class="${cls}" ${attrs}><div class="suit-icon">🤡</div><div class="special-letter">N</div></div>`;
+  return `<div class="${cls}" ${attrs}><div>${cardLabel(card)}</div><div class="suit-icon">${suitIconHTML(card.suit)}</div></div>`;
+}
+
+function renderScoreboard() {
+  const el = document.getElementById('scoreboard');
+  el.innerHTML = [0, 1, 2, 3].map(i => {
+    const name = PLAYER_NAMES[i];
+    const active = (state.phase === 'playing' && state.currentPlayer === i) ||
+                   (state.phase === 'bidding' && state.biddingOrder[state.biddingIndex] === i);
+    const bidStr = state.bids[i] === null ? '–' : state.bids[i];
+    const badge = isAISeat(i) ? `<div class="type-badge ai">KI</div>` : `<div class="type-badge human">😀</div>`;
+    return `<div class="player-card${active ? ' active' : ''}">
+      ${badge}
+      <div class="name">${escapeHtml(name)}${i === state.dealerIndex ? ' (Geber)' : ''}</div>
+      <div class="score">${state.scores[i]}</div>
+      <div class="meta"><span>Ansage: ${bidStr}</span><span>Stiche: ${state.tricksWon[i]}</span></div>
+    </div>`;
+  }).join('');
+}
+
+function renderRoundInfo() {
+  const el = document.getElementById('roundInfo');
+  let phaseText = '';
+  if (state.phase === 'bidding') {
+    const p = state.biddingOrder[state.biddingIndex];
+    phaseText = p === MY_SEAT ? 'Du musst eine Vorhersage abgeben.' : `${escapeHtml(PLAYER_NAMES[p])} sagt an...`;
+  } else if (state.phase === 'playing') {
+    phaseText = state.currentPlayer === MY_SEAT ? 'Du bist am Zug.' : `${escapeHtml(PLAYER_NAMES[state.currentPlayer])} ist am Zug...`;
+  }
+  el.innerHTML = `<div class="big">Runde ${state.round} / ${MAX_ROUNDS}</div><div>${phaseText}</div>`;
+}
+
+function renderTrump() {
+  const el = document.getElementById('trumpCard');
+  if (state.trumpCard) {
+    el.innerHTML = renderCard(state.trumpCard, { large: true });
+    if (state.trumpCard.type !== 'number') {
+      const txt = state.trumpCard.type === 'wizard'
+        ? `Trumpf: ${state.trumpSuit ? `<span class="${SUIT_CLASS[state.trumpSuit]}" style="display:inline-flex; align-items:center; gap:4px;">${suitIconHTML(state.trumpSuit)} ${capitalize(state.trumpSuit)}</span>` : '–'}`
+        : 'Kein Trumpf';
+      el.innerHTML += `<div style="font-size:11px; margin-top:4px; color:var(--muted);">${txt}</div>`;
+    }
+  } else {
+    el.innerHTML = `<div class="card large" style="background:transparent; border:1px dashed var(--muted); color: var(--muted);">–</div><div style="font-size:11px; margin-top:4px; color:var(--muted);">Kein Trumpf</div>`;
+  }
+}
+
+function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+function renderTrick() {
+  const el = document.getElementById('trickCards');
+  if (state.currentTrick.length === 0) {
+    el.innerHTML = `<div style="color:var(--muted); font-size:12px;">Noch keine Karte gespielt</div>`;
+    return;
+  }
+  el.innerHTML = state.currentTrick.map(t =>
+    `<div class="trick-card-wrap"><div class="who">${escapeHtml(PLAYER_NAMES[t.playerIndex])}</div>${renderCard(t.card, { small: true })}</div>`
+  ).join('');
+}
+
+function renderOpponentHands() {
+  const el = document.getElementById('opponentHandsArea');
+  if (state.round === 1 && state.phase === 'bidding') {
+    let html = `<div class="opponent-hands">`;
+    for (let i = 0; i < NUM_PLAYERS; i++) {
+      if (i === MY_SEAT) continue;
+      const cards = state.hands[i];
+      html += `<div class="opponent-hand-box">
+        <div class="oh-name">${escapeHtml(PLAYER_NAMES[i])}</div>
+        <div class="oh-cards">${cards.map(c => c ? renderCard(c, { small: true }) : '<div class="card small back"></div>').join('')}</div>
+      </div>`;
+    }
+    html += `</div>`;
+    if (state.biddingOrder[state.biddingIndex] === MY_SEAT) {
+      html += `<div style="text-align:center; font-size:12px; color:var(--gold); margin-bottom:8px;">Du siehst die Karten der anderen — aber nicht deine eigene!</div>`;
+    }
+    el.innerHTML = html;
+  } else {
+    el.innerHTML = '';
+  }
+}
+
+function renderBidPanel() {
+  const panel = document.getElementById('bidPanel');
+  if (state.phase !== 'bidding' || state.biddingOrder[state.biddingIndex] !== MY_SEAT) {
+    panel.classList.add('hidden');
+    return;
+  }
+  panel.classList.remove('hidden');
+  const forbidden = forbiddenBidForLastPlayer(MY_SEAT);
+  let html = `<h3>Deine Vorhersage</h3>`;
+  html += `<div class="hint">Wie viele Stiche wirst du in dieser Runde machen? (0 – ${state.round})</div>`;
+  if (forbidden !== null) {
+    html += `<div class="hint" style="color:var(--gold);">Hinweis: ${forbidden} ist nicht erlaubt (Summe wäre gleich Rundenzahl).</div>`;
+  }
+  html += `<div class="bid-options">`;
+  for (let b = 0; b <= state.round; b++) {
+    html += `<button class="bid-btn" ${forbidden === b ? 'disabled' : ''} onclick="submitHumanBid(${b})">${b}</button>`;
+  }
+  html += `</div>`;
+  panel.innerHTML = html;
+}
+
+function renderPlayerHand() {
+  const el = document.getElementById('playerHand');
+  const hand = state.hands[MY_SEAT];
+
+  if (state.round === 1 && state.phase === 'bidding' && hand.length > 0) {
+    el.innerHTML = renderCard(null, { faceDown: true });
+    return;
+  }
+
+  if (hand.length === 0) {
+    el.innerHTML = `<div style="color:var(--muted); font-size:12px;">Keine Karten</div>`;
+    return;
+  }
+
+  const canPlay = state.phase === 'playing' && state.currentPlayer === MY_SEAT && state.currentTrick.length < NUM_PLAYERS;
+  const legal = canPlay ? legalCardIndices(MY_SEAT) : [];
+
+  el.innerHTML = hand.map((card, i) =>
+    renderCard(card, {
+      playable: canPlay && legal.includes(i),
+      disabled: canPlay && !legal.includes(i),
+      dataIndex: i
+    })
+  ).join('');
+
+  if (canPlay) {
+    el.querySelectorAll('.card.playable').forEach(elCard => {
+      elCard.addEventListener('click', () => {
+        const idx = parseInt(elCard.dataset.index, 10);
+        if (MODE === 'online') {
+          if (socket) socket.emit('action', { type: 'play', cardIndex: idx });
+          // Karten sofort deaktivieren bis state_update kommt
+          el.querySelectorAll('.card.playable').forEach(c => {
+            c.classList.remove('playable');
+            c.classList.add('disabled');
+          });
+        } else {
+          playCard(MY_SEAT, idx);
+        }
+      });
+    });
+  }
+}
+
+/* ============================================================
+   PERSISTENZ (localStorage, nur offline)
+   ============================================================ */
+
+const SAVE_KEY = 'wizard_save_v1';
+
+function saveGame(showStatus = false) {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      state, logHTML: document.getElementById('logArea').innerHTML,
+      playerNames: PLAYER_NAMES, seats: SEATS, mySeat: MY_SEAT
+    }));
+    if (showStatus) flashSaveStatus('Gespeichert ✓');
+  } catch (e) {
+    if (showStatus) flashSaveStatus('Speichern fehlgeschlagen');
+  }
+}
+
+function manualSave() { saveGame(true); }
+
+function flashSaveStatus(msg) {
+  const el = document.getElementById('saveStatus');
+  if (!el) return;
+  el.textContent = msg;
+  setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 2000);
+}
+
+function loadGame() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+
+function clearSave() { localStorage.removeItem(SAVE_KEY); }
+
+/* ============================================================
+   HIGHSCORE (offline)
+   ============================================================ */
+
+const HIGHSCORE_KEY = 'wizard_highscore_offline_v1';
+const HIGHSCORE_MAX = 10;
+
+function loadOfflineHighscores() {
+  try {
+    const raw = localStorage.getItem(HIGHSCORE_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list : [];
+  } catch (e) { return []; }
+}
+
+function saveOfflineHighscores(list) {
+  try { localStorage.setItem(HIGHSCORE_KEY, JSON.stringify(list)); } catch (e) { }
+}
+
+function qualifiesForOfflineHighscore(score) {
+  const list = loadOfflineHighscores();
+  if (list.length < HIGHSCORE_MAX) return true;
+  return score > list[list.length - 1].score;
+}
+
+function addOfflineHighscore(name, score) {
+  const list = loadOfflineHighscores();
+  list.push({ name: name.slice(0, 6), score, date: Date.now() });
+  list.sort((a, b) => b.score - a.score);
+  while (list.length > HIGHSCORE_MAX) list.pop();
+  saveOfflineHighscores(list);
+}
+
+function maybeShowHighscoreEntry(score) {
+  if (!qualifiesForOfflineHighscore(score)) return false;
+  const modalEl = document.getElementById('modalContent');
+  modalEl.classList.remove('wide');
+  modalEl.innerHTML = `
+    <h2>🏆 Neuer Highscore!</h2>
+    <p style="color:var(--muted); font-size:13px;">Mit ${score} Punkten hast du es in die ewige
+    Bestenliste geschafft. Gib einen Namen ein (max. 6 Zeichen):</p>
+    <input type="text" id="highscoreNameInput" class="lobby-name-input" maxlength="6" value="Spieler"
+      style="text-transform:uppercase; text-align:center; letter-spacing:2px;">
+    <div style="margin-top:12px;">
+      <button class="btn-main" onclick="submitOfflineHighscore(${score})">Eintragen</button>
+    </div>
+  `;
+  document.getElementById('overlay').classList.remove('hidden');
+  const input = document.getElementById('highscoreNameInput');
+  setTimeout(() => { input.focus(); input.select(); }, 50);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') submitOfflineHighscore(score); });
+  return true;
+}
+
+function submitOfflineHighscore(score) {
+  const input = document.getElementById('highscoreNameInput');
+  let name = (input.value || 'Spieler').trim().slice(0, 6) || 'Spieler';
+  addOfflineHighscore(name, score);
+  showHighscore();
+}
+
+function showHighscore() {
+  if (MODE === 'online' && TABLE_CODE && socket) {
+    showOnlineHighscore();
+  } else {
+    renderOfflineHighscoreModal();
+  }
+}
+
+function renderOfflineHighscoreModal() {
+  const list = loadOfflineHighscores();
+  let html = `<h2>🏆 Highscore — Solo</h2>`;
+  if (list.length === 0) {
+    html += `<p style="color:var(--muted); font-size:13px;">Noch keine Einträge. Spiele eine Partie zu Ende, um hier zu erscheinen!</p>`;
+  } else {
+    html += `<table class="summary-table"><tr><th>#</th><th>Name</th><th>Punkte</th></tr>`;
+    list.forEach((e, i) => { html += `<tr><td>${i + 1}</td><td>${escapeHtml(e.name)}</td><td>${e.score}</td></tr>`; });
+    html += `</table>`;
+  }
+  html += `<div style="margin-top:14px; text-align:center;"><button class="btn-small" onclick="closeOverlay()">Schließen</button></div>`;
+  const modalEl = document.getElementById('modalContent');
+  modalEl.classList.remove('wide');
+  modalEl.innerHTML = html;
+  document.getElementById('overlay').classList.remove('hidden');
+}
+
+function showOnlineHighscore() {
+  const modalEl = document.getElementById('modalContent');
+  modalEl.classList.remove('wide');
+  modalEl.innerHTML = `<h2>🏆 Highscore — Tisch ${TABLE_CODE}</h2><p style="color:var(--muted); font-size:13px;">Lade…</p>`;
+  document.getElementById('overlay').classList.remove('hidden');
+
+  socket.emit('get_highscores', (list) => {
+    let html = `<h2>🏆 Highscore — Tisch ${TABLE_CODE}</h2>`;
+    if (!list || list.length === 0) {
+      html += `<p style="color:var(--muted); font-size:13px;">Noch keine Einträge. Spielt eine Partie zu Ende!</p>`;
+    } else {
+      html += `<table class="summary-table"><tr><th>#</th><th>Name</th><th>Punkte</th></tr>`;
+      list.forEach((e, i) => { html += `<tr><td>${i + 1}</td><td>${escapeHtml(e.name)}</td><td>${e.score}</td></tr>`; });
+      html += `</table>`;
+    }
+    html += `<div style="margin-top:14px; text-align:center;"><button class="btn-small" onclick="closeOverlay()">Schließen</button></div>`;
+    const el2 = document.getElementById('modalContent');
+    el2.classList.remove('wide');
+    el2.innerHTML = html;
+  });
+}
+
+/* ============================================================
+   DIALOGE & RESET
+   ============================================================ */
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function pv(playerIndex, verb3rd) {
+  const name = escapeHtml(PLAYER_NAMES[playerIndex]);
+  if (playerIndex === MY_SEAT && name === 'Du') {
+    const du = { sagt: 'sagst', spielt: 'spielst', gewinnt: 'gewinnst' };
+    return { name, verb: du[verb3rd] || verb3rd };
+  }
+  return { name, verb: verb3rd };
+}
+
+function confirmReset() {
+  let html, actionBtn;
+  if (MODE === 'online') {
+    html = `<h2>Tisch verlassen?</h2>`;
+    html += `<p style="color:var(--muted); font-size:13px;">Dein Platz wird wieder von einer KI übernommen. Du kehrst zur Startseite zurück.</p>`;
+    actionBtn = `<button class="btn-main" onclick="leaveTable()">Ja, verlassen</button>`;
+  } else {
+    html = `<h2>Spiel zurücksetzen?</h2>`;
+    html += `<p style="color:var(--muted); font-size:13px;">Der aktuelle Spielstand und der gespeicherte Fortschritt gehen verloren.</p>`;
+    actionBtn = `<button class="btn-main" onclick="resetGame()">Neues Spiel starten</button>
+      <button class="btn-main" onclick="backToStart()">Zum Start zurückkehren</button>`;
+  }
+  html += `<div style="display:flex; gap:10px; justify-content:center; margin-top:14px;">`;
+  html += actionBtn;
+  html += `<button class="btn-small" onclick="closeOverlay()">Abbrechen</button>`;
+  html += `</div>`;
+  const modalEl = document.getElementById('modalContent');
+  modalEl.classList.remove('wide');
+  modalEl.innerHTML = html;
+  document.getElementById('overlay').classList.remove('hidden');
+}
+
+function confirmEndTable() {
+  let html = `<h2>Tisch beenden?</h2>`;
+  html += `<p style="color:var(--muted); font-size:13px;">Der gesamte Tisch wird gelöscht und alle Teilnehmer werden zur Startseite zurückgeschickt.</p>`;
+  html += `<div style="display:flex; gap:10px; justify-content:center; margin-top:14px;">`;
+  html += `<button class="btn-main" onclick="endTable()">Ja, Tisch beenden</button>`;
+  html += `<button class="btn-small" onclick="closeOverlay()">Abbrechen</button>`;
+  html += `</div>`;
+  const modalEl = document.getElementById('modalContent');
+  modalEl.classList.remove('wide');
+  modalEl.innerHTML = html;
+  document.getElementById('overlay').classList.remove('hidden');
+}
+
+function closeOverlay() {
+  document.getElementById('overlay').classList.add('hidden');
+  document.getElementById('modalContent').classList.remove('wide');
+}
+
+function resetGame() {
+  clearSave();
+  document.getElementById('overlay').classList.add('hidden');
+  document.getElementById('logArea').innerHTML = '';
+  state.scores = [0, 0, 0, 0];
+  state.round = 1;
+  shuffleSeatsOffline();
+  state.dealerIndex = 0;
+  log('<span class="log-entry highlight">— Neues Spiel gestartet —</span>');
+  log('Du spielst gegen Anke, Bruno und Carla. Viel Glück!');
+  startRound();
+}
+
+function backToStart() {
+  clearSave();
+  document.getElementById('overlay').classList.add('hidden');
+  showLobby();
+}
+
+function showResumePrompt(saved) {
+  const s = saved.state;
+  let html = `<h2>Spielstand gefunden</h2>`;
+  html += `<p style="color:var(--muted); font-size:13px;">Es wurde ein gespeicherter Spielstand gefunden (Runde ${s.round}/${MAX_ROUNDS}, Punkte: ${PLAYER_NAMES.map((n, i) => escapeHtml(n) + ': ' + s.scores[i]).join(', ')}).</p>`;
+  html += `<p style="color:var(--muted); font-size:13px;">Möchtest du fortsetzen oder ein neues Spiel starten?</p>`;
+  html += `<div style="display:flex; gap:10px; justify-content:center; margin-top:14px;">`;
+  html += `<button class="btn-main" onclick="resumeGame()">Fortsetzen</button>`;
+  html += `<button class="btn-small" onclick="discardSaveAndStart()">Neues Spiel</button>`;
+  html += `</div>`;
+  const modalEl = document.getElementById('modalContent');
+  modalEl.classList.remove('wide');
+  modalEl.innerHTML = html;
+  document.getElementById('overlay').classList.remove('hidden');
+}
+
+function discardSaveAndStart() {
+  clearSave();
+  document.getElementById('overlay').classList.add('hidden');
+  shuffleSeatsOffline();
+  state.dealerIndex = 0;
+  document.getElementById('logArea').innerHTML = '';
+  log('<span class="log-entry highlight">— Willkommen bei Vaticinium! —</span>');
+  log('Du spielst gegen Anke, Bruno und Carla. Viel Glück!');
+  startRound();
+}
+
+function resumeGame() {
+  const saved = loadGame();
+  document.getElementById('overlay').classList.add('hidden');
+  Object.assign(state, saved.state);
+  if (saved.playerNames) PLAYER_NAMES = saved.playerNames;
+  if (saved.seats) SEATS = saved.seats;
+  if (typeof saved.mySeat === 'number') MY_SEAT = saved.mySeat;
+  document.getElementById('logArea').innerHTML = saved.logHTML || '';
+  log('<span class="log-entry highlight">— Spielstand geladen —</span>');
+  render();
+  if (state.phase === 'bidding') processBidding();
+  else if (state.phase === 'playing') playTurn();
+  else if (state.phase === 'roundEnd' && state.lastRoundResults) showRoundSummary(state.lastRoundResults);
+}
+
+function showRules() {
+  const modal = document.getElementById('modalContent');
+  modal.classList.add('wide');
+  modal.innerHTML = `
+    <h2>Spielregeln — Vaticinium</h2>
+    <div class="rules-content">
+      <h3>Grundlagen</h3>
+      <p>Gespielt wird mit 60 Karten: in 4 Farben die Werte 1–13, dazu 4 Zauberer (Z) und 4 Narren (N).
+      Das Spiel geht über ${MAX_ROUNDS} Runden. In Runde 1 erhält jeder Spieler 1 Karte, in Runde 2 zwei Karten,
+      und so weiter bis Runde ${MAX_ROUNDS}.</p>
+
+      <h3>Trumpf</h3>
+      <p>Nach dem Austeilen wird eine Karte aufgedeckt, die die Trumpffarbe bestimmt. Ist es ein Zauberer,
+      wählt der Geber die Trumpffarbe. Ist es ein Narr, gibt es in dieser Runde keinen Trumpf.
+      In der letzten Runde bleibt kein Kartenstapel übrig, daher gibt es dann keine Trumpfkarte.</p>
+
+      <h3>Ansagen</h3>
+      <p>Bevor eine Runde gespielt wird, sagt jeder Spieler an, wie viele Stiche er in dieser Runde
+      machen wird (0 bis Rundenzahl). Die Ansage erfolgt in Reihenfolge, beginnend links vom Geber.</p>
+
+      <div class="special">
+        <b>Sonderregel — Summenbeschränkung:</b> Die Summe aller Ansagen darf nicht genau der Anzahl
+        der in dieser Runde tatsächlich möglichen Stiche entsprechen (= Rundenzahl). Der letzte Spieler
+        in der Ansagereihenfolge darf daher den Wert nicht wählen, der die Gesamtsumme exakt auf diese
+        Zahl bringen würde.
+      </div>
+
+      <div class="special">
+        <b>Sonderregel — Runde 1:</b> In Runde 1 hat jeder Spieler nur eine Karte. Beim Ansagen sieht
+        man die (eine) Karte jedes Mitspielers, aber nicht die eigene. Die Ansage muss also "blind"
+        erfolgen.
+      </div>
+
+      <h3>Ausspielen</h3>
+      <p>Der Spieler links vom Geber spielt die erste Karte des ersten Stichs aus. Es gilt Farbzwang:
+      wer die angespielte Farbe besitzt, muss sie bedienen — außer er spielt einen Zauberer oder Narren,
+      die immer erlaubt sind. Wer die Farbe nicht besitzt, darf eine beliebige Karte spielen.</p>
+
+      <ul>
+        <li><b>Zauberer:</b> gewinnt den Stich immer, unabhängig davon, was sonst gespielt wurde.
+        Werden mehrere Zauberer in einem Stich gespielt, gewinnt der zuerst gespielte.</li>
+        <li><b>Narr:</b> verliert den Stich immer und kann ihn nicht gewinnen — selbst wenn alle
+        Spieler nur Narren spielen, gewinnt in diesem Fall der zuerst ausgespielte Narr.</li>
+        <li><b>Trumpf:</b> schlägt alle Karten der angespielten Farbe (sofern kein Zauberer im Stich liegt).</li>
+        <li>Ohne Zauberer oder Trumpf im Stich gewinnt die höchste Karte der angespielten Farbe.</li>
+      </ul>
+
+      <h3>Punkteberechnung</h3>
+      <ul>
+        <li><b>Ansage korrekt erfüllt:</b> +20 Punkte, plus 10 Punkte für jeden gemachten Stich.</li>
+        <li><b>Ansage verfehlt (zu viel oder zu wenig):</b> −10 Punkte für jede Differenz zwischen
+        Ansage und tatsächlichen Stichen.</li>
+      </ul>
+      <p>Nach ${MAX_ROUNDS} Runden gewinnt, wer die höchste Gesamtpunktzahl erreicht hat.</p>
+
+      <h3>Solo- und Multiplayer-Modus</h3>
+      <p><b>Solo spielen:</b> Du spielst allein gegen 3 KI-Gegner. Der Spielstand wird automatisch
+      im Browser gespeichert, sodass du jederzeit unterbrechen und später fortsetzen kannst.</p>
+      <p><b>Tisch erstellen:</b> Du startest einen Multiplayer-Tisch und erhältst einen 4-stelligen Code.
+      Freunde können diesen Code nutzen, um deinen KI-Gegnern Plätze abzunehmen. Beim Start füllt die
+      KI alle noch freien Plätze automatisch auf.</p>
+      <p>Beim Erstellen kannst du optional <b>Nachträgliches Beitreten</b> erlauben: Spieler können dann
+      auch noch während einer laufenden Partie beitreten und einen KI-Platz übernehmen — sofern nach der
+      aktuellen Runde noch mindestens 4 Runden verbleiben. Die laufende Runde spielt die KI für den neuen
+      Spieler noch zu Ende; ab der nächsten Runde ist er vollwertig dabei.</p>
+      <p><b>Tisch beitreten:</b> Mit dem Code eines Freundes übernimmst du einen freien Platz an dessen
+      Tisch. Wurde nachträgliches Beitreten erlaubt, ist ein Beitritt auch während eines laufenden Spiels
+      möglich — du siehst sofort den aktuellen Spielstand und übernimmst nach Rundenende.</p>
+      <p>Der Multiplayer läuft über einen eigenen Server. Alle Teilnehmer müssen den Server erreichen können
+      (z.B. im Heimnetz oder über VPN).</p>
+    </div>
+    <div style="margin-top:16px; text-align:center;">
+      <button class="btn-small" onclick="closeOverlay()">Schließen</button>
+    </div>
+  `;
+  document.getElementById('overlay').classList.remove('hidden');
+}
+
+/* ============================================================
+   INITIALISIERUNG
+   ============================================================ */
+
+function init() {
+  try {
+    const raw = localStorage.getItem(ONLINE_SESSION_KEY);
+    if (raw) {
+      const session = JSON.parse(raw);
+      if (session && session.code && session.clientId) {
+        CLIENT_ID = session.clientId;
+        initSocket();
+
+        socket.emit('reconnect_table', { code: session.code, clientId: session.clientId }, (res) => {
+          if (res.error) {
+            localStorage.removeItem(ONLINE_SESSION_KEY);
+            showLobby();
+            return;
+          }
+          TABLE_CODE = session.code;
+          MY_SEAT = res.seat;
+          IS_HOST = res.isHost || false;
+          PLAYER_NAMES = res.names;
+          SEATS = res.seats;
+          MODE = 'online';
+
+          if (!res.started) {
+            document.getElementById('lobby').classList.remove('hidden');
+            renderWaitingRoom({ names: res.names, seats: res.seats });
+          } else {
+            showGameView();
+          }
+        });
+        return;
+      }
+    }
+  } catch (e) { /* ignore */ }
+
+  showLobby();
+}
+
+init();
+</script>
+</body>
+</html>

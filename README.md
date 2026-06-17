@@ -2,6 +2,8 @@
 
 Ein vollständiges Wizard-Kartenspiel im Browser — Solo gegen KI oder Multiplayer mit Freunden über einen eigenen Node.js-Server.
 
+![Lobby](docs/lobby.png)
+
 ## Features
 
 - **Solo-Modus** — Spiel gegen 3 KI-Gegner mit adaptiver Bietstrategie und menschlichen Unschärfen
@@ -10,6 +12,20 @@ Ein vollständiges Wizard-Kartenspiel im Browser — Solo gegen KI oder Multipla
 - **Tischchat** — Integrierter Echtzeit-Chat während des Spiels
 - **Highscore** — Bestenliste für Solo-Partien (localStorage)
 - **Responsive** — Funktioniert auf Desktop und Mobilgeräten
+
+## Screenshots
+
+### Solo-Modus
+![Solo-Spiel](docs/solo.png)
+
+### Multiplayer
+![Multiplayer-Tisch](docs/multiplayer.png)
+
+### Tisch erstellen
+![Tisch erstellen](docs/tisch-erstellen.png)
+
+### Warteraum
+![Warteraum](docs/warteraum.png)
 
 ## Spielprinzip
 
@@ -57,6 +73,7 @@ pm2 save
 vaticinium/
 ├── server.js        — Node.js-Server: Spiellogik, Socket.io, Tischverwaltung
 ├── package.json
+├── docs/            — Screenshots
 └── public/
     └── wizard.html  — Single-Page-App: Rendering, Solo-Logik, UI
 ```

@@ -1654,7 +1654,10 @@ function playTurn() {
   const playerIndex = state.currentPlayer;
   if (isHumanSeat(playerIndex)) {
     if (state.hands[playerIndex].length === 1) {
-      setTimeout(() => playCard(playerIndex, 0), 500);
+      setTimeout(() => {
+        if (state.phase === 'playing' && state.currentPlayer === playerIndex && state.hands[playerIndex].length === 1)
+          playCard(playerIndex, 0);
+      }, 500);
       return;
     }
     render();

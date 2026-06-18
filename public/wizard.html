@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Vaticinium – Kartenspiel</title>
+<link rel="icon" type="image/svg+xml" href="/logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
@@ -652,6 +653,20 @@
     letter-spacing: 1px;
   }
 
+  .flag-btn {
+    background: transparent;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 2px 5px;
+    border-radius: 4px;
+    opacity: 0.4;
+    transition: opacity 0.15s, transform 0.1s;
+    line-height: 1;
+  }
+  .flag-btn:hover { opacity: 0.85; transform: scale(1.1); }
+  .flag-btn.active { opacity: 1; }
+
   @media (max-width: 600px) {
     .scoreboard { grid-template-columns: repeat(2, 1fr); }
     .opponent-hands { grid-template-columns: 1fr; }
@@ -663,11 +678,15 @@
 </head>
 <body>
 
-<h1>Vaticinium</h1>
+<h1><img src="/logo.svg" alt="" style="height:1.1em; width:1.1em; vertical-align:middle; margin-right:0.35em; margin-bottom:0.1em;">Vaticinium</h1>
 <div class="subtitle" id="subtitle">Du gegen drei KI-Gegner — Stiche ansagen, Trumpf beachten, gewinnen</div>
-<div style="text-align:center; margin-bottom:6px;">
-  <button class="btn-small" onclick="showRules()">📖 Spielregeln</button>
-  <button class="btn-small" onclick="showHighscore()">🏆 Highscore</button>
+<div style="text-align:center; margin-bottom:6px; display:flex; gap:8px; justify-content:center; align-items:center; flex-wrap:wrap;">
+  <button class="btn-small" id="btnRules" onclick="showRules()">📖 Spielregeln</button>
+  <button class="btn-small" id="btnHighscore" onclick="showHighscore()">🏆 Highscore</button>
+  <span style="display:inline-flex; gap:2px; margin-left:4px;">
+    <button class="flag-btn active" id="flagDe" onclick="setLang('de')" title="Deutsch">🇩🇪</button>
+    <button class="flag-btn" id="flagEn" onclick="setLang('en')" title="English">🇬🇧</button>
+  </span>
 </div>
 
 <!-- ============ LOBBY ============ -->
@@ -677,10 +696,10 @@
 
 <!-- ============ GAME ============ -->
 <div class="top-bar hidden" id="topBar">
-  <button class="btn-small" id="saveBtn" onclick="manualSave()">💾 Speichern</button>
-  <button class="btn-small" onclick="confirmReset()">↺ Zurücksetzen / Verlassen</button>
-  <button class="btn-small hidden" id="endTableBtn" onclick="confirmEndTable()">🗑 Tisch beenden</button>
-  <button class="btn-small hidden" id="chatToggleBtn" onclick="toggleChat()">💬 Chat</button>
+  <button class="btn-small" id="saveBtn" onclick="manualSave()" data-i18n="btn_save">💾 Speichern</button>
+  <button class="btn-small" id="btnReset" onclick="confirmReset()" data-i18n="btn_reset">↺ Zurücksetzen / Verlassen</button>
+  <button class="btn-small hidden" id="endTableBtn" onclick="confirmEndTable()" data-i18n="btn_endtable">🗑 Tisch beenden</button>
+  <button class="btn-small hidden" id="chatToggleBtn" onclick="toggleChat()" data-i18n="btn_chat">💬 Chat</button>
   <span id="saveStatus" class="save-status"></span>
   <span id="tableCodeDisplay" class="save-status"></span>
   <span id="presenceInfo" class="save-status"></span>
@@ -694,11 +713,11 @@
 
   <div class="center-area">
     <div class="trump-box">
-      <div class="label">Trumpf</div>
+      <div class="label" data-i18n="label_trump">Trumpf</div>
       <div id="trumpCard"></div>
     </div>
     <div class="trick-box">
-      <div class="label">Aktueller Stich</div>
+      <div class="label" data-i18n="label_trick">Aktueller Stich</div>
       <div class="trick-cards" id="trickCards"></div>
     </div>
   </div>
@@ -710,7 +729,7 @@
   <div id="bidPanel" class="bid-panel hidden"></div>
 
   <div class="hand-area">
-    <div class="hand-label">Deine Hand</div>
+    <div class="hand-label" data-i18n="label_hand">Deine Hand</div>
     <div class="hand" id="playerHand"></div>
   </div>
 
@@ -721,13 +740,13 @@
 <!-- ============ TISCHCHAT ============ -->
 <div class="chat-panel hidden" id="chatPanel">
   <div class="chat-header">
-    <span>💬 Tischchat</span>
+    <span data-i18n="chat_header">💬 Tischchat</span>
     <button class="btn-small" onclick="toggleChat()">✕</button>
   </div>
   <div class="chat-messages" id="chatMessages"></div>
   <div class="chat-input-row">
-    <input type="text" id="chatInput" class="chat-input" placeholder="Nachricht…" maxlength="200" onkeydown="if(event.key==='Enter') sendChatMessage();">
-    <button class="btn-small" onclick="sendChatMessage()">Senden</button>
+    <input type="text" id="chatInput" class="chat-input" data-i18n-placeholder="chat_placeholder" placeholder="Nachricht…" maxlength="200" onkeydown="if(event.key==='Enter') sendChatMessage();">
+    <button class="btn-small" id="btnChatSend" onclick="sendChatMessage()" data-i18n="btn_send">Senden</button>
   </div>
 </div>
 
@@ -739,6 +758,234 @@
 <script src="/socket.io/socket.io.js"></script>
 
 <script>
+/* ============================================================
+   I18N
+   ============================================================ */
+
+let LANG = localStorage.getItem('vat_lang') || 'de';
+
+const T = {
+  de: {
+    subtitle_lobby: 'Spiele Solo gegen KI oder tritt einem Multiplayer-Tisch bei',
+    subtitle_solo: 'Du gegen drei KI-Gegner — Stiche ansagen, Trumpf beachten, gewinnen',
+    subtitle_online: (me, others, code) => `Du (${me}) gegen ${others} — Tisch ${code}`,
+    btn_rules: '📖 Spielregeln', btn_highscore: '🏆 Highscore',
+    btn_save: '💾 Speichern', btn_reset: '↺ Zurücksetzen / Verlassen',
+    btn_endtable: '🗑 Tisch beenden', btn_chat: '💬 Chat',
+    btn_send: 'Senden', btn_back: 'Zurück', btn_cancel: 'Abbrechen', btn_close: 'Schließen',
+    label_trump: 'Trumpf', label_trick: 'Aktueller Stich', label_hand: 'Deine Hand',
+    chat_header: '💬 Tischchat', chat_placeholder: 'Nachricht…',
+    lobby_title: 'Willkommen bei Vaticinium',
+    lobby_p1: 'Spiele Solo gegen 3 KI-Gegner oder erstelle einen Multiplayer-Tisch,<br>an dem Freunde Plätze von KI-Gegnern übernehmen können.',
+    lobby_p2: 'Details zu beiden Modi findest du unter "📖 Spielregeln" oben.',
+    btn_solo: 'Solo spielen', btn_create: 'Tisch erstellen', btn_join_table: 'Tisch beitreten',
+    create_title: 'Tisch erstellen',
+    create_p: 'Gib deinen Namen ein. Du übernimmst Sitzplatz 1 und kannst das Spiel starten,<br>sobald genug Mitspieler beigetreten sind (freie Plätze werden mit KI gefüllt).',
+    create_name_ph: 'Dein Name', btn_create_confirm: 'Tisch erstellen',
+    latejoin_label: 'Nachträgliches Beitreten erlauben',
+    latejoin_hint: 'Neue Spieler können KI-Plätze übernehmen solange noch mind. 4 Runden verbleiben. Die laufende Runde spielt die KI noch zu Ende.',
+    join_title: 'Tisch beitreten', join_p: 'Gib den 4-stelligen Tischcode und deinen Namen ein.',
+    join_code_ph: '0000', join_name_ph: 'Dein Name', btn_join_confirm: 'Beitreten',
+    join_err_code: 'Bitte einen 4-stelligen Code eingeben.',
+    waiting_title: 'Warteraum', waiting_code_hint: 'Tischcode (an Freunde weitergeben):',
+    btn_reload: '🔄 Seite neu laden', btn_start_game: 'Spiel starten',
+    start_hint: 'Freie Plätze werden beim Start automatisch von KI übernommen.',
+    waiting_for_host: 'Warte, bis der Spielleiter das Spiel startet…',
+    seat_free: 'frei (KI)', seat_me: 'du', seat_taken: 'belegt',
+    badge_ai: 'KI',
+    dealer_label: (name) => `${name} (Geber)`,
+    bid_label: 'Ansage:', tricks_label: 'Stiche:',
+    round_label: (r, max) => `Runde ${r} / ${max}`,
+    your_bid_prompt: 'Du musst eine Vorhersage abgeben.',
+    ai_bid_prompt: (name) => `${name} sagt an...`,
+    your_turn: 'Du bist am Zug.', ai_turn: (name) => `${name} ist am Zug...`,
+    bid_title: 'Deine Vorhersage',
+    bid_hint: (max) => `Wie viele Stiche wirst du in dieser Runde machen? (0 – ${max})`,
+    bid_forbidden: (n) => `Hinweis: ${n} ist nicht erlaubt (Summe wäre gleich Rundenzahl).`,
+    no_trump: 'Kein Trumpf', no_cards_played: 'Noch keine Karte gespielt',
+    no_hand_cards: 'Keine Karten',
+    round1_hint: 'Du siehst die Karten der anderen — aber nicht deine eigene!',
+    table_code_display: (code) => `Tisch ${code}`,
+    log_welcome: 'Willkommen bei Vaticinium!', log_new_game: 'Neues Spiel gestartet',
+    log_save_loaded: 'Spielstand geladen',
+    log_solo_intro: 'Du spielst gegen Anke, Bruno und Carla. Viel Glück!',
+    log_round: (r) => `Runde ${r} (${r} Karte${r > 1 ? 'n' : ''} pro Spieler)`,
+    log_trump_wiz: (suit) => `Der Dealer wählt ${suit} als Trumpf (Zauberer aufgedeckt).`,
+    log_bids_prefix: 'Vorhersagen:',
+    bid_suffix: (n) => n === 1 ? 'Stich' : 'Stiche',
+    log_bid: (name, verb, bid, suf) => `${name} ${verb} <b>${bid}</b> ${suf} an.`,
+    log_play: (name, verb, lbl) => `${name} ${verb} ${lbl}.`,
+    log_wins_trick: (name, verb) => `${name} ${verb} den Stich.`,
+    wins_banner: (name) => `${name} gewinnt den Stich`,
+    log_round_result: (name, bid, won, pts, total) =>
+      `${name}: Vorhersage ${bid}, Stiche ${won} → <b>${pts >= 0 ? '+' : ''}${pts}</b> Punkte (Gesamt: ${total})`,
+    pv_verb: (verb, isMe) => isMe ? ({ sagt: 'sagst', spielt: 'spielst', gewinnt: 'gewinnst' }[verb] || verb) : verb,
+    me_name: 'Du', offline_names: ['Du', 'Anke', 'Bruno', 'Carla'],
+    round_summary_title: (r) => `Runde ${r} – Ergebnis`,
+    col_player: 'Spieler', col_bid: 'Vorhersage', col_tricks: 'Stiche',
+    col_points: 'Punkte', col_total: 'Gesamt',
+    winner_msg: (names, score) => `🏆 ${names} gewinnt mit ${score} Punkten!`,
+    btn_next_round: 'Nächste Runde', btn_new_game: 'Neues Spiel',
+    wait_next_round: 'Warte auf den Spielleiter für die nächste Runde…',
+    wait_new_game: 'Warte auf den Spielleiter für ein neues Spiel…',
+    table_deleted_msg: 'Der Tisch wurde vom Spielleiter beendet.',
+    confirm_leave_title: 'Tisch verlassen?',
+    confirm_leave_text: 'Dein Platz wird wieder von einer KI übernommen. Du kehrst zur Startseite zurück.',
+    btn_confirm_leave: 'Ja, verlassen',
+    confirm_reset_title: 'Spiel zurücksetzen?',
+    confirm_reset_text: 'Der aktuelle Spielstand und der gespeicherte Fortschritt gehen verloren.',
+    btn_new_game_start: 'Neues Spiel starten', btn_back_to_start: 'Zum Start zurückkehren',
+    confirm_end_title: 'Tisch beenden?',
+    confirm_end_text: 'Der gesamte Tisch wird gelöscht und alle Teilnehmer werden zur Startseite zurückgeschickt.',
+    btn_confirm_end: 'Ja, Tisch beenden',
+    resume_title: 'Spielstand gefunden',
+    resume_text: (r, max, sc) => `Es wurde ein gespeicherter Spielstand gefunden (Runde ${r}/${max}, Punkte: ${sc}).`,
+    resume_question: 'Möchtest du fortsetzen oder ein neues Spiel starten?',
+    btn_resume: 'Fortsetzen', btn_discard: 'Neues Spiel',
+    saved_ok: 'Gespeichert ✓', saved_fail: 'Speichern fehlgeschlagen',
+    hs_solo_title: '🏆 Highscore — Solo',
+    hs_online_title: (code) => `🏆 Highscore — Tisch ${code}`,
+    hs_empty_offline: 'Noch keine Einträge. Spiele eine Partie zu Ende, um hier zu erscheinen!',
+    hs_empty_online: 'Noch keine Einträge. Spielt eine Partie zu Ende!',
+    hs_loading: 'Lade…', hs_col_rank: '#', hs_col_name: 'Name', hs_col_score: 'Punkte',
+    new_hs_title: '🏆 Neuer Highscore!',
+    new_hs_text: (s) => `Mit ${s} Punkten hast du es in die ewige Bestenliste geschafft. Gib einen Namen ein (max. 6 Zeichen):`,
+    btn_submit_hs: 'Eintragen',
+    latejoin_banner: '🙋 Du bist beigetreten! Die KI übernimmt deinen Platz für diese Runde — ab der nächsten Runde spielst du selbst.',
+    latejoin_log: (names) => `🙋 ${names} übernimmt ab der nächsten Runde!`,
+    rules_title: 'Spielregeln — Vaticinium',
+    locale_time: 'de-DE',
+  },
+  en: {
+    subtitle_lobby: 'Play Solo against AI or join a Multiplayer table',
+    subtitle_solo: 'You vs. three AI opponents — predict tricks, follow trump, win',
+    subtitle_online: (me, others, code) => `You (${me}) vs. ${others} — Table ${code}`,
+    btn_rules: '📖 Rules', btn_highscore: '🏆 Highscore',
+    btn_save: '💾 Save', btn_reset: '↺ Reset / Leave',
+    btn_endtable: '🗑 End Table', btn_chat: '💬 Chat',
+    btn_send: 'Send', btn_back: 'Back', btn_cancel: 'Cancel', btn_close: 'Close',
+    label_trump: 'Trump', label_trick: 'Current Trick', label_hand: 'Your Hand',
+    chat_header: '💬 Table Chat', chat_placeholder: 'Message…',
+    lobby_title: 'Welcome to Vaticinium',
+    lobby_p1: 'Play Solo against 3 AI opponents or create a Multiplayer table<br>where friends can take over AI seats.',
+    lobby_p2: 'More details about both modes in "📖 Rules" above.',
+    btn_solo: 'Play Solo', btn_create: 'Create Table', btn_join_table: 'Join Table',
+    create_title: 'Create Table',
+    create_p: 'Enter your name. You take seat 1 and can start the game<br>once enough players have joined (empty seats will be filled by AI).',
+    create_name_ph: 'Your Name', btn_create_confirm: 'Create Table',
+    latejoin_label: 'Allow Late Join',
+    latejoin_hint: 'New players can take over AI seats as long as at least 4 rounds remain. The AI plays the current round to completion.',
+    join_title: 'Join Table', join_p: 'Enter the 4-digit table code and your name.',
+    join_code_ph: '0000', join_name_ph: 'Your Name', btn_join_confirm: 'Join',
+    join_err_code: 'Please enter a 4-digit code.',
+    waiting_title: 'Waiting Room', waiting_code_hint: 'Table code (share with friends):',
+    btn_reload: '🔄 Reload Page', btn_start_game: 'Start Game',
+    start_hint: 'Empty seats will automatically be filled by AI at start.',
+    waiting_for_host: 'Waiting for the host to start the game…',
+    seat_free: 'free (AI)', seat_me: 'you', seat_taken: 'taken',
+    badge_ai: 'AI',
+    dealer_label: (name) => `${name} (Dealer)`,
+    bid_label: 'Bid:', tricks_label: 'Tricks:',
+    round_label: (r, max) => `Round ${r} / ${max}`,
+    your_bid_prompt: 'You must place a bid.',
+    ai_bid_prompt: (name) => `${name} is bidding...`,
+    your_turn: 'Your turn.', ai_turn: (name) => `${name}'s turn...`,
+    bid_title: 'Your Bid',
+    bid_hint: (max) => `How many tricks will you take this round? (0 – ${max})`,
+    bid_forbidden: (n) => `Note: ${n} is not allowed (sum would equal the round count).`,
+    no_trump: 'No Trump', no_cards_played: 'No card played yet',
+    no_hand_cards: 'No cards',
+    round1_hint: "You can see the other players' cards — but not your own!",
+    table_code_display: (code) => `Table ${code}`,
+    log_welcome: 'Welcome to Vaticinium!', log_new_game: 'New game started',
+    log_save_loaded: 'Game loaded',
+    log_solo_intro: 'You play against Anne, Bruno and Carla. Good luck!',
+    log_round: (r) => `Round ${r} (${r} card${r > 1 ? 's' : ''} per player)`,
+    log_trump_wiz: (suit) => `The dealer chooses ${suit} as trump (wizard revealed).`,
+    log_bids_prefix: 'Bids:',
+    bid_suffix: (n) => n === 1 ? 'trick' : 'tricks',
+    log_bid: (name, verb, bid, suf) => `${name} ${verb} <b>${bid}</b> ${suf}.`,
+    log_play: (name, verb, lbl) => `${name} ${verb} ${lbl}.`,
+    log_wins_trick: (name, verb) => `${name} ${verb} the trick.`,
+    wins_banner: (name) => `${name} wins the trick`,
+    log_round_result: (name, bid, won, pts, total) =>
+      `${name}: bid ${bid}, tricks ${won} → <b>${pts >= 0 ? '+' : ''}${pts}</b> pts (total: ${total})`,
+    pv_verb: (verb, isMe) => {
+      const map3 = { sagt: 'bids', spielt: 'plays', gewinnt: 'wins' };
+      const map2 = { sagt: 'bid', spielt: 'played', gewinnt: 'won' };
+      return isMe ? (map2[verb] || verb) : (map3[verb] || verb);
+    },
+    me_name: 'You', offline_names: ['You', 'Anne', 'Bruno', 'Carla'],
+    round_summary_title: (r) => `Round ${r} – Results`,
+    col_player: 'Player', col_bid: 'Bid', col_tricks: 'Tricks',
+    col_points: 'Points', col_total: 'Total',
+    winner_msg: (names, score) => `🏆 ${names} wins with ${score} points!`,
+    btn_next_round: 'Next Round', btn_new_game: 'New Game',
+    wait_next_round: 'Waiting for the host to start the next round…',
+    wait_new_game: 'Waiting for the host to start a new game…',
+    table_deleted_msg: 'The table was ended by the host.',
+    confirm_leave_title: 'Leave Table?',
+    confirm_leave_text: 'Your seat will be taken over by AI. You will return to the start page.',
+    btn_confirm_leave: 'Yes, Leave',
+    confirm_reset_title: 'Reset Game?',
+    confirm_reset_text: 'The current game progress and saved state will be lost.',
+    btn_new_game_start: 'Start New Game', btn_back_to_start: 'Back to Start',
+    confirm_end_title: 'End Table?',
+    confirm_end_text: 'The entire table will be deleted and all players returned to the start page.',
+    btn_confirm_end: 'Yes, End Table',
+    resume_title: 'Saved Game Found',
+    resume_text: (r, max, sc) => `A saved game was found (round ${r}/${max}, scores: ${sc}).`,
+    resume_question: 'Would you like to continue or start a new game?',
+    btn_resume: 'Continue', btn_discard: 'New Game',
+    saved_ok: 'Saved ✓', saved_fail: 'Save failed',
+    hs_solo_title: '🏆 Highscore — Solo',
+    hs_online_title: (code) => `🏆 Highscore — Table ${code}`,
+    hs_empty_offline: 'No entries yet. Finish a game to appear here!',
+    hs_empty_online: 'No entries yet. Finish a game first!',
+    hs_loading: 'Loading…', hs_col_rank: '#', hs_col_name: 'Name', hs_col_score: 'Points',
+    new_hs_title: '🏆 New Highscore!',
+    new_hs_text: (s) => `With ${s} points you've made the all-time leaderboard. Enter a name (max. 6 characters):`,
+    btn_submit_hs: 'Submit',
+    latejoin_banner: "🙋 You have joined! The AI plays your seat this round — you take over next round.",
+    latejoin_log: (names) => `🙋 ${names} takes over from the next round!`,
+    rules_title: 'Rules — Vaticinium',
+    locale_time: 'en-GB',
+  }
+};
+
+function t(key, ...args) {
+  const v = T[LANG][key];
+  return typeof v === 'function' ? v(...args) : (v !== undefined ? v : key);
+}
+
+function setLang(lang) {
+  LANG = lang;
+  localStorage.setItem('vat_lang', lang);
+  document.getElementById('flagDe').classList.toggle('active', lang === 'de');
+  document.getElementById('flagEn').classList.toggle('active', lang === 'en');
+  applyLang();
+  if (document.getElementById('lobby').classList.contains('hidden')) {
+    render();
+  } else {
+    renderLobbyHome();
+  }
+}
+
+function applyLang() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    el.textContent = t(key);
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    el.placeholder = t(el.dataset.i18nPlaceholder);
+  });
+  document.getElementById('subtitle').textContent =
+    document.getElementById('gameTable').classList.contains('hidden')
+      ? t('subtitle_lobby') : t('subtitle_solo');
+  document.getElementById('flagDe').classList.toggle('active', LANG === 'de');
+  document.getElementById('flagEn').classList.toggle('active', LANG === 'en');
+}
+
 /* ============================================================
    WIZARD — Spiel-Logik
    ============================================================ */
@@ -753,19 +1000,19 @@ function suitIconHTML(suit) {
 }
 const SUIT_CLASS = { rot: 'red', blau: 'blue', grün: 'green', gelb: 'yellow' };
 
-let PLAYER_NAMES = ['Du', 'Anke', 'Bruno', 'Carla'];
+let PLAYER_NAMES = T[LANG].offline_names.slice();
 const NUM_PLAYERS = 4;
 const MAX_ROUNDS = Math.floor(60 / NUM_PLAYERS); // 15
 
 function shuffleSeatsOffline() {
-  const base = ['Du', 'Anke', 'Bruno', 'Carla'];
+  const base = T[LANG].offline_names.slice();
   for (let i = base.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [base[i], base[j]] = [base[j], base[i]];
   }
   PLAYER_NAMES = base;
-  MY_SEAT = PLAYER_NAMES.indexOf('Du');
-  SEATS = PLAYER_NAMES.map((n, i) => i === MY_SEAT ? 'human' : 'AI');
+  MY_SEAT = PLAYER_NAMES.indexOf(t('me_name'));
+  SEATS = PLAYER_NAMES.map((_, i) => i === MY_SEAT ? 'human' : 'AI');
 }
 
 /* ---------- Multiplayer-Status ---------- */
@@ -864,7 +1111,7 @@ function initSocket() {
     cleanupOnline();
     showLobby();
     const el = document.getElementById('lobbyContent');
-    el.insertAdjacentHTML('afterbegin', `<p style="color:var(--gold); font-size:13px; text-align:center; margin-bottom:10px;">Der Tisch wurde vom Spielleiter beendet.</p>`);
+    el.insertAdjacentHTML('afterbegin', `<p style="color:var(--gold); font-size:13px; text-align:center; margin-bottom:10px;">${t('table_deleted_msg')}</p>`);
   });
 }
 
@@ -888,7 +1135,7 @@ function showGameView() {
   document.getElementById('lobby').classList.add('hidden');
   document.getElementById('topBar').classList.remove('hidden');
   document.getElementById('gameTable').classList.remove('hidden');
-  document.getElementById('tableCodeDisplay').textContent = `Tisch ${TABLE_CODE}`;
+  document.getElementById('tableCodeDisplay').textContent = t('table_code_display', TABLE_CODE);
   document.getElementById('saveBtn').classList.add('hidden');
   document.getElementById('chatToggleBtn').classList.remove('hidden');
 }
@@ -902,7 +1149,7 @@ function showLobby() {
   document.getElementById('topBar').classList.add('hidden');
   document.getElementById('gameTable').classList.add('hidden');
   document.getElementById('overlay').classList.add('hidden');
-  document.getElementById('subtitle').textContent = 'Spiele Solo gegen KI oder tritt einem Multiplayer-Tisch bei';
+  document.getElementById('subtitle').textContent = t('subtitle_lobby');
   renderLobbyHome();
 }
 
@@ -910,16 +1157,14 @@ function renderLobbyHome() {
   const el = document.getElementById('lobbyContent');
   el.innerHTML = `
     <div class="lobby-section">
-      <h2>Willkommen bei Vaticinium</h2>
-      <p>Spiele Solo gegen 3 KI-Gegner oder erstelle einen Multiplayer-Tisch,<br>
-      an dem Freunde Plätze von KI-Gegnern übernehmen können.</p>
-      <p style="font-size:11px; color:var(--muted);">Details zu beiden Modi findest du unter
-      "📖 Spielregeln" oben.</p>
+      <h2>${t('lobby_title')}</h2>
+      <p>${t('lobby_p1')}</p>
+      <p style="font-size:11px; color:var(--muted);">${t('lobby_p2')}</p>
       <div style="margin-top:18px; display:flex; flex-direction:column; gap:10px; align-items:center;">
-        <button class="btn-main" onclick="startOfflineGame()">Solo spielen</button>
-        <div class="lobby-divider">— oder Multiplayer —</div>
-        <button class="btn-main" onclick="renderCreateTable()">Tisch erstellen</button>
-        <button class="btn-main" onclick="renderJoinTable()">Tisch beitreten</button>
+        <button class="btn-main" onclick="startOfflineGame()">${t('btn_solo')}</button>
+        <div class="lobby-divider">— ${LANG === 'en' ? 'or Multiplayer' : 'oder Multiplayer'} —</div>
+        <button class="btn-main" onclick="renderCreateTable()">${t('btn_create')}</button>
+        <button class="btn-main" onclick="renderJoinTable()">${t('btn_join_table')}</button>
       </div>
     </div>
   `;
@@ -929,19 +1174,18 @@ function renderCreateTable() {
   const el = document.getElementById('lobbyContent');
   el.innerHTML = `
     <div class="lobby-section">
-      <h2>Tisch erstellen</h2>
-      <p>Gib deinen Namen ein. Du übernimmst Sitzplatz 1 und kannst das Spiel starten,<br>
-      sobald genug Mitspieler beigetreten sind (freie Plätze werden mit KI gefüllt).</p>
-      <input type="text" id="hostNameInput" class="lobby-name-input" placeholder="Dein Name" maxlength="16" value="Spieler">
+      <h2>${t('create_title')}</h2>
+      <p>${t('create_p')}</p>
+      <input type="text" id="hostNameInput" class="lobby-name-input" placeholder="${t('create_name_ph')}" maxlength="16" value="${LANG === 'en' ? 'Player' : 'Spieler'}">
       <div style="margin-top:12px; display:flex; align-items:flex-start; justify-content:center; gap:8px; font-size:13px; color:var(--muted); max-width:340px; margin-left:auto; margin-right:auto; text-align:left;">
         <input type="checkbox" id="allowLateJoinCheck" style="margin-top:3px; width:16px; height:16px; accent-color:var(--gold); cursor:pointer; flex-shrink:0;">
-        <label for="allowLateJoinCheck" style="cursor:pointer;">Nachträgliches Beitreten erlauben
-          <span style="display:block; font-size:11px; margin-top:2px;">Neue Spieler können KI-Plätze übernehmen solange noch mind. 4 Runden verbleiben. Die laufende Runde spielt die KI noch zu Ende.</span>
+        <label for="allowLateJoinCheck" style="cursor:pointer;">${t('latejoin_label')}
+          <span style="display:block; font-size:11px; margin-top:2px;">${t('latejoin_hint')}</span>
         </label>
       </div>
       <div style="margin-top:14px; display:flex; gap:10px; justify-content:center;">
-        <button class="btn-main" onclick="createTable()">Tisch erstellen</button>
-        <button class="btn-small" onclick="renderLobbyHome()">Zurück</button>
+        <button class="btn-main" onclick="createTable()">${t('btn_create_confirm')}</button>
+        <button class="btn-small" onclick="renderLobbyHome()">${t('btn_back')}</button>
       </div>
     </div>
   `;
@@ -951,14 +1195,14 @@ function renderJoinTable() {
   const el = document.getElementById('lobbyContent');
   el.innerHTML = `
     <div class="lobby-section">
-      <h2>Tisch beitreten</h2>
-      <p>Gib den 4-stelligen Tischcode und deinen Namen ein.</p>
-      <div><input type="text" id="joinCodeInput" class="lobby-input" placeholder="0000" maxlength="4" inputmode="numeric"></div>
-      <input type="text" id="joinNameInput" class="lobby-name-input" placeholder="Dein Name" maxlength="16" value="Spieler" style="margin-top:10px;">
+      <h2>${t('join_title')}</h2>
+      <p>${t('join_p')}</p>
+      <div><input type="text" id="joinCodeInput" class="lobby-input" placeholder="${t('join_code_ph')}" maxlength="4" inputmode="numeric"></div>
+      <input type="text" id="joinNameInput" class="lobby-name-input" placeholder="${t('join_name_ph')}" maxlength="16" value="${LANG === 'en' ? 'Player' : 'Spieler'}" style="margin-top:10px;">
       <div id="joinError" style="color:var(--red); font-size:12px; margin-top:6px;"></div>
       <div style="margin-top:10px; display:flex; gap:10px; justify-content:center;">
-        <button class="btn-main" onclick="joinTable()">Beitreten</button>
-        <button class="btn-small" onclick="renderLobbyHome()">Zurück</button>
+        <button class="btn-main" onclick="joinTable()">${t('btn_join_confirm')}</button>
+        <button class="btn-small" onclick="renderLobbyHome()">${t('btn_back')}</button>
       </div>
     </div>
   `;
@@ -985,8 +1229,8 @@ function startOfflineGame() {
     shuffleSeatsOffline();
     state.dealerIndex = 0;
     document.getElementById('logArea').innerHTML = '';
-    log('<span class="log-entry highlight">— Willkommen bei Vaticinium! —</span>');
-    log('Du spielst gegen Anke, Bruno und Carla. Viel Glück!');
+    log(`<span class="log-entry highlight">— ${t('log_welcome')} —</span>`);
+    log(t('log_solo_intro'));
     startRound();
   }
 }
@@ -1022,7 +1266,7 @@ function joinTable() {
   errEl.textContent = '';
 
   if (!/^[0-9]{4}$/.test(code)) {
-    errEl.textContent = 'Bitte einen 4-stelligen Code eingeben.';
+    errEl.textContent = t('join_err_code');
     return;
   }
 
@@ -1056,13 +1300,13 @@ function renderWaitingRoom(data) {
   const el = document.getElementById('lobbyContent');
   el.innerHTML = `
     <div class="lobby-section">
-      <h2>Warteraum</h2>
-      <p>Tischcode (an Freunde weitergeben):</p>
+      <h2>${t('waiting_title')}</h2>
+      <p>${t('waiting_code_hint')}</p>
       <div class="table-code-box">${TABLE_CODE}</div>
       <ul class="seat-list" id="seatList"></ul>
       <div id="waitingActions" style="margin-top:10px;"></div>
       <div style="margin-top:14px;">
-        <button class="btn-small" onclick="location.reload()">🔄 Seite neu laden</button>
+        <button class="btn-small" onclick="location.reload()">${t('btn_reload')}</button>
       </div>
     </div>
   `;
@@ -1074,17 +1318,17 @@ function renderSeatList(data) {
   if (!el) return;
   el.innerHTML = (data.seats || SEATS).map((s, i) => {
     const isMe = s === `h:${CLIENT_ID}`;
-    const tag = s === 'AI' ? 'frei (KI)' : (isMe ? 'du' : 'belegt');
+    const tag = s === 'AI' ? t('seat_free') : (isMe ? t('seat_me') : t('seat_taken'));
     return `<li><span>${escapeHtml((data.names || PLAYER_NAMES)[i])}${isMe ? ' (du)' : ''}</span><span class="seat-tag">${tag}</span></li>`;
   }).join('');
 
   const actionsEl = document.getElementById('waitingActions');
   if (!actionsEl) return;
   if (IS_HOST) {
-    actionsEl.innerHTML = `<button class="btn-main" onclick="hostStartGame()">Spiel starten</button>
-      <div style="font-size:11px; color:var(--muted); margin-top:6px;">Freie Plätze werden beim Start automatisch von KI übernommen.</div>`;
+    actionsEl.innerHTML = `<button class="btn-main" onclick="hostStartGame()">${t('btn_start_game')}</button>
+      <div style="font-size:11px; color:var(--muted); margin-top:6px;">${t('start_hint')}</div>`;
   } else {
-    actionsEl.innerHTML = `<p style="color:var(--muted); font-size:12px;">Warte, bis der Spielleiter das Spiel startet…</p>`;
+    actionsEl.innerHTML = `<p style="color:var(--muted); font-size:12px;">${t('waiting_for_host')}</p>`;
   }
 }
 
@@ -1118,7 +1362,7 @@ function renderLateJoinBanner() {
       const div = document.createElement('div');
       div.id = 'lateJoinBanner';
       div.style.cssText = 'background:rgba(216,179,92,0.12); border:1px solid var(--gold); border-radius:8px; padding:10px 16px; margin-bottom:12px; font-size:13px; color:var(--gold); text-align:center; letter-spacing:0.5px;';
-      div.textContent = '🙋 Du bist beigetreten! Die KI übernimmt deinen Platz für diese Runde — ab der nächsten Runde spielst du selbst.';
+      div.textContent = t('latejoin_banner');
       gameTable.insertBefore(div, gameTable.firstChild);
     }
   } else if (el) {
@@ -1174,7 +1418,7 @@ function updateChatBadge() {
 function renderChatMessage(msg) {
   const el = document.getElementById('chatMessages');
   if (!el) return;
-  const time = msg.time ? new Date(msg.time).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '';
+  const time = msg.time ? new Date(msg.time).toLocaleTimeString(t('locale_time'), { hour: '2-digit', minute: '2-digit' }) : '';
   const div = document.createElement('div');
   div.className = 'chat-msg';
   div.innerHTML = `<span class="chat-name">${escapeHtml(msg.name || '?')}:</span> ${escapeHtml(msg.text || '')}<span class="chat-time">${time}</span>`;
@@ -1245,7 +1489,7 @@ function startRound() {
     state.trumpSuit = state.trumpCard.suit;
   } else if (state.trumpCard.type === 'wizard') {
     state.trumpSuit = SUITS[Math.floor(Math.random() * SUITS.length)];
-    log(`Der Dealer wählt ${state.trumpSuit} als Trumpf (Zauberer aufgedeckt).`);
+    log(t('log_trump_wiz', state.trumpSuit));
   } else {
     state.trumpSuit = null;
   }
@@ -1259,7 +1503,7 @@ function startRound() {
   state.trickLeader = state.biddingOrder[0];
   state.currentPlayer = state.trickLeader;
 
-  log(`<span class="log-entry highlight">— Runde ${state.round} (${state.round} Karte${state.round > 1 ? 'n' : ''} pro Spieler) —</span>`);
+  log(`<span class="log-entry highlight">— ${t('log_round', state.round)} —</span>`);
 
   render();
   processBidding();
@@ -1306,7 +1550,7 @@ function forbiddenBidForLastPlayer(playerIndex) {
 function processBidding() {
   if (state.biddingIndex >= NUM_PLAYERS) {
     state.phase = 'playing';
-    log(`Vorhersagen: ${state.bids.map((b, i) => escapeHtml(PLAYER_NAMES[i]) + ': ' + b).join(', ')}`);
+    log(`${t('log_bids_prefix')} ${state.bids.map((b, i) => escapeHtml(PLAYER_NAMES[i]) + ': ' + b).join(', ')}`);
     render();
     setTimeout(() => playTurn(), 600);
     return;
@@ -1340,7 +1584,7 @@ function submitHumanBid(bid) {
 
 function applyBid(seat, bid) {
   state.bids[seat] = bid;
-  { const p = pv(seat, 'sagt'); log(`${p.name} ${p.verb} <b>${bid}</b> Stich${bid === 1 ? '' : 'e'} an.`); }
+  { const p = pv(seat, 'sagt'); log(t('log_bid', p.name, p.verb, bid, t('bid_suffix', bid))); }
   state.biddingIndex++;
   document.getElementById('bidPanel').classList.add('hidden');
   processBidding();
@@ -1393,7 +1637,7 @@ function playCard(playerIndex, cardIndex) {
 
   const label = card.type === 'wizard' ? 'Zauberer' : card.type === 'jester' ? 'Narr'
     : `${cardLabel(card)} <span class="${SUIT_CLASS[card.suit]}" style="display:inline-flex; align-items:center;">${suitIconHTML(card.suit)}</span>`;
-  { const p = pv(playerIndex, 'spielt'); log(`${p.name} ${p.verb} ${label}.`); }
+  { const p = pv(playerIndex, 'spielt'); log(t('log_play', p.name, p.verb, label)); }
 
   render();
 
@@ -1440,8 +1684,8 @@ function resolveTrick() {
   const winner = trickWinner();
   state.tricksWon[winner]++;
   const _pw = pv(winner, 'gewinnt');
-  log(`<span class="log-entry highlight">${_pw.name} ${_pw.verb} den Stich.</span>`);
-  state.winnerBanner = `${PLAYER_NAMES[winner]} gewinnt den Stich`;
+  log(`<span class="log-entry highlight">${t('log_wins_trick', _pw.name, _pw.verb)}</span>`);
+  state.winnerBanner = t('wins_banner', PLAYER_NAMES[winner]);
   render();
 
   setTimeout(() => {
@@ -1515,7 +1759,7 @@ function endRound() {
     const points = bid === won ? 20 + won * 10 : -10 * Math.abs(bid - won);
     state.scores[p] += points;
     results.push({ name: PLAYER_NAMES[p], bid, won, points, total: state.scores[p] });
-    log(`${escapeHtml(PLAYER_NAMES[p])}: Vorhersage ${bid}, Stiche ${won} → <b>${points >= 0 ? '+' : ''}${points}</b> Punkte (Gesamt: ${state.scores[p]})`);
+    log(t('log_round_result', escapeHtml(PLAYER_NAMES[p]), bid, won, points, state.scores[p]));
   }
   state.lastRoundResults = results;
   if (MODE === 'offline') saveGame(false);
@@ -1524,8 +1768,8 @@ function endRound() {
 
 function showRoundSummary(results) {
   const isLastRound = state.round >= MAX_ROUNDS;
-  let html = `<h2>Runde ${state.round} – Ergebnis</h2>`;
-  html += `<table class="summary-table"><tr><th>Spieler</th><th>Vorhersage</th><th>Stiche</th><th>Punkte</th><th>Gesamt</th></tr>`;
+  let html = `<h2>${t('round_summary_title', state.round)}</h2>`;
+  html += `<table class="summary-table"><tr><th>${t('col_player')}</th><th>${t('col_bid')}</th><th>${t('col_tricks')}</th><th>${t('col_points')}</th><th>${t('col_total')}</th></tr>`;
   for (const r of results) {
     html += `<tr><td>${escapeHtml(r.name)}</td><td>${r.bid}</td><td>${r.won}</td><td>${r.points >= 0 ? '+' : ''}${r.points}</td><td>${r.total}</td></tr>`;
   }
@@ -1537,11 +1781,11 @@ function showRoundSummary(results) {
   if (isLastRound) {
     const maxScore = Math.max(...state.scores);
     const winners = PLAYER_NAMES.filter((_, i) => state.scores[i] === maxScore);
-    html += `<p style="color:var(--gold); font-size:18px; margin-top:14px;">🏆 ${winners.join(', ')} gewinnt mit ${maxScore} Punkten!</p>`;
+    html += `<p style="color:var(--gold); font-size:18px; margin-top:14px;">${t('winner_msg', winners.join(', '), maxScore)}</p>`;
     if (iAmHost) {
-      html += `<button class="btn-main" onclick="newGame()">Neues Spiel</button>`;
+      html += `<button class="btn-main" onclick="newGame()">${t('btn_new_game')}</button>`;
     } else {
-      html += `<p style="color:var(--muted); font-size:12px;">Warte auf den Spielleiter für ein neues Spiel…</p>`;
+      html += `<p style="color:var(--muted); font-size:12px;">${t('wait_new_game')}</p>`;
     }
     if (MODE === 'offline') {
       clearSave();
@@ -1549,9 +1793,9 @@ function showRoundSummary(results) {
     }
   } else {
     if (iAmHost) {
-      html += `<button class="btn-main" onclick="nextRound()">Nächste Runde</button>`;
+      html += `<button class="btn-main" onclick="nextRound()">${t('btn_next_round')}</button>`;
     } else {
-      html += `<p style="color:var(--muted); font-size:12px;">Warte auf den Spielleiter für die nächste Runde…</p>`;
+      html += `<p style="color:var(--muted); font-size:12px;">${t('wait_next_round')}</p>`;
     }
   }
 
@@ -1586,7 +1830,7 @@ function newGame() {
   state.round = 1;
   shuffleSeatsOffline();
   state.dealerIndex = 0;
-  log('<span class="log-entry highlight">— Neues Spiel gestartet —</span>');
+  log(`<span class="log-entry highlight">— ${t('log_new_game')} —</span>`);
   startRound();
 }
 
@@ -1604,10 +1848,10 @@ function updateSubtitle() {
   const el = document.getElementById('subtitle');
   if (!el) return;
   if (MODE === 'offline') {
-    el.textContent = 'Du gegen drei KI-Gegner — Stiche ansagen, Trumpf beachten, gewinnen';
+    el.textContent = t('subtitle_solo');
   } else {
     const others = PLAYER_NAMES.filter((_, i) => i !== MY_SEAT);
-    el.textContent = `Du (${PLAYER_NAMES[MY_SEAT]}) gegen ${others.join(', ')} — Tisch ${TABLE_CODE}`;
+    el.textContent = t('subtitle_online', PLAYER_NAMES[MY_SEAT], others.join(', '), TABLE_CODE);
   }
   const endBtn = document.getElementById('endTableBtn');
   if (endBtn) {
@@ -1657,12 +1901,13 @@ function renderScoreboard() {
     const active = (state.phase === 'playing' && state.currentPlayer === i) ||
                    (state.phase === 'bidding' && state.biddingOrder[state.biddingIndex] === i);
     const bidStr = state.bids[i] === null ? '–' : state.bids[i];
-    const badge = isAISeat(i) ? `<div class="type-badge ai">KI</div>` : `<div class="type-badge human">😀</div>`;
+    const badge = isAISeat(i) ? `<div class="type-badge ai">${t('badge_ai')}</div>` : `<div class="type-badge human">😀</div>`;
+    const nameLabel = i === state.dealerIndex ? t('dealer_label', escapeHtml(name)) : escapeHtml(name);
     return `<div class="player-card${active ? ' active' : ''}">
       ${badge}
-      <div class="name">${escapeHtml(name)}${i === state.dealerIndex ? ' (Geber)' : ''}</div>
+      <div class="name">${nameLabel}</div>
       <div class="score">${state.scores[i]}</div>
-      <div class="meta"><span>Ansage: ${bidStr}</span><span>Stiche: ${state.tricksWon[i]}</span></div>
+      <div class="meta"><span>${t('bid_label')} ${bidStr}</span><span>${t('tricks_label')} ${state.tricksWon[i]}</span></div>
     </div>`;
   }).join('');
 }
@@ -1672,11 +1917,11 @@ function renderRoundInfo() {
   let phaseText = '';
   if (state.phase === 'bidding') {
     const p = state.biddingOrder[state.biddingIndex];
-    phaseText = p === MY_SEAT ? 'Du musst eine Vorhersage abgeben.' : `${escapeHtml(PLAYER_NAMES[p])} sagt an...`;
+    phaseText = p === MY_SEAT ? t('your_bid_prompt') : t('ai_bid_prompt', escapeHtml(PLAYER_NAMES[p]));
   } else if (state.phase === 'playing') {
-    phaseText = state.currentPlayer === MY_SEAT ? 'Du bist am Zug.' : `${escapeHtml(PLAYER_NAMES[state.currentPlayer])} ist am Zug...`;
+    phaseText = state.currentPlayer === MY_SEAT ? t('your_turn') : t('ai_turn', escapeHtml(PLAYER_NAMES[state.currentPlayer]));
   }
-  el.innerHTML = `<div class="big">Runde ${state.round} / ${MAX_ROUNDS}</div><div>${phaseText}</div>`;
+  el.innerHTML = `<div class="big">${t('round_label', state.round, MAX_ROUNDS)}</div><div>${phaseText}</div>`;
 }
 
 function renderTrump() {
@@ -1685,12 +1930,12 @@ function renderTrump() {
     el.innerHTML = renderCard(state.trumpCard, { large: true });
     if (state.trumpCard.type !== 'number') {
       const txt = state.trumpCard.type === 'wizard'
-        ? `Trumpf: ${state.trumpSuit ? `<span class="${SUIT_CLASS[state.trumpSuit]}" style="display:inline-flex; align-items:center; gap:4px;">${suitIconHTML(state.trumpSuit)} ${capitalize(state.trumpSuit)}</span>` : '–'}`
-        : 'Kein Trumpf';
+        ? `${t('label_trump')}: ${state.trumpSuit ? `<span class="${SUIT_CLASS[state.trumpSuit]}" style="display:inline-flex; align-items:center; gap:4px;">${suitIconHTML(state.trumpSuit)} ${capitalize(state.trumpSuit)}</span>` : '–'}`
+        : t('no_trump');
       el.innerHTML += `<div style="font-size:11px; margin-top:4px; color:var(--muted);">${txt}</div>`;
     }
   } else {
-    el.innerHTML = `<div class="card large" style="background:transparent; border:1px dashed var(--muted); color: var(--muted);">–</div><div style="font-size:11px; margin-top:4px; color:var(--muted);">Kein Trumpf</div>`;
+    el.innerHTML = `<div class="card large" style="background:transparent; border:1px dashed var(--muted); color: var(--muted);">–</div><div style="font-size:11px; margin-top:4px; color:var(--muted);">${t('no_trump')}</div>`;
   }
 }
 
@@ -1699,7 +1944,7 @@ function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 function renderTrick() {
   const el = document.getElementById('trickCards');
   if (state.currentTrick.length === 0) {
-    el.innerHTML = `<div style="color:var(--muted); font-size:12px;">Noch keine Karte gespielt</div>`;
+    el.innerHTML = `<div style="color:var(--muted); font-size:12px;">${t('no_cards_played')}</div>`;
     return;
   }
   el.innerHTML = state.currentTrick.map(t =>
@@ -1721,7 +1966,7 @@ function renderOpponentHands() {
     }
     html += `</div>`;
     if (state.biddingOrder[state.biddingIndex] === MY_SEAT) {
-      html += `<div style="text-align:center; font-size:12px; color:var(--gold); margin-bottom:8px;">Du siehst die Karten der anderen — aber nicht deine eigene!</div>`;
+      html += `<div style="text-align:center; font-size:12px; color:var(--gold); margin-bottom:8px;">${t('round1_hint')}</div>`;
     }
     el.innerHTML = html;
   } else {
@@ -1737,10 +1982,10 @@ function renderBidPanel() {
   }
   panel.classList.remove('hidden');
   const forbidden = forbiddenBidForLastPlayer(MY_SEAT);
-  let html = `<h3>Deine Vorhersage</h3>`;
-  html += `<div class="hint">Wie viele Stiche wirst du in dieser Runde machen? (0 – ${state.round})</div>`;
+  let html = `<h3>${t('bid_title')}</h3>`;
+  html += `<div class="hint">${t('bid_hint', state.round)}</div>`;
   if (forbidden !== null) {
-    html += `<div class="hint" style="color:var(--gold);">Hinweis: ${forbidden} ist nicht erlaubt (Summe wäre gleich Rundenzahl).</div>`;
+    html += `<div class="hint" style="color:var(--gold);">${t('bid_forbidden', forbidden)}</div>`;
   }
   html += `<div class="bid-options">`;
   for (let b = 0; b <= state.round; b++) {
@@ -1760,7 +2005,7 @@ function renderPlayerHand() {
   }
 
   if (hand.length === 0) {
-    el.innerHTML = `<div style="color:var(--muted); font-size:12px;">Keine Karten</div>`;
+    el.innerHTML = `<div style="color:var(--muted); font-size:12px;">${t('no_hand_cards')}</div>`;
     return;
   }
 
@@ -1806,9 +2051,9 @@ function saveGame(showStatus = false) {
       state, logHTML: document.getElementById('logArea').innerHTML,
       playerNames: PLAYER_NAMES, seats: SEATS, mySeat: MY_SEAT
     }));
-    if (showStatus) flashSaveStatus('Gespeichert ✓');
+    if (showStatus) flashSaveStatus(t('saved_ok'));
   } catch (e) {
-    if (showStatus) flashSaveStatus('Speichern fehlgeschlagen');
+    if (showStatus) flashSaveStatus(t('saved_fail'));
   }
 }
 
@@ -1868,13 +2113,12 @@ function maybeShowHighscoreEntry(score) {
   const modalEl = document.getElementById('modalContent');
   modalEl.classList.remove('wide');
   modalEl.innerHTML = `
-    <h2>🏆 Neuer Highscore!</h2>
-    <p style="color:var(--muted); font-size:13px;">Mit ${score} Punkten hast du es in die ewige
-    Bestenliste geschafft. Gib einen Namen ein (max. 6 Zeichen):</p>
-    <input type="text" id="highscoreNameInput" class="lobby-name-input" maxlength="6" value="Spieler"
+    <h2>${t('new_hs_title')}</h2>
+    <p style="color:var(--muted); font-size:13px;">${t('new_hs_text', score)}</p>
+    <input type="text" id="highscoreNameInput" class="lobby-name-input" maxlength="6" value="${LANG === 'en' ? 'Player' : 'Spieler'}"
       style="text-transform:uppercase; text-align:center; letter-spacing:2px;">
     <div style="margin-top:12px;">
-      <button class="btn-main" onclick="submitOfflineHighscore(${score})">Eintragen</button>
+      <button class="btn-main" onclick="submitOfflineHighscore(${score})">${t('btn_submit_hs')}</button>
     </div>
   `;
   document.getElementById('overlay').classList.remove('hidden');
@@ -1901,15 +2145,15 @@ function showHighscore() {
 
 function renderOfflineHighscoreModal() {
   const list = loadOfflineHighscores();
-  let html = `<h2>🏆 Highscore — Solo</h2>`;
+  let html = `<h2>${t('hs_solo_title')}</h2>`;
   if (list.length === 0) {
-    html += `<p style="color:var(--muted); font-size:13px;">Noch keine Einträge. Spiele eine Partie zu Ende, um hier zu erscheinen!</p>`;
+    html += `<p style="color:var(--muted); font-size:13px;">${t('hs_empty_offline')}</p>`;
   } else {
-    html += `<table class="summary-table"><tr><th>#</th><th>Name</th><th>Punkte</th></tr>`;
+    html += `<table class="summary-table"><tr><th>${t('hs_col_rank')}</th><th>${t('hs_col_name')}</th><th>${t('hs_col_score')}</th></tr>`;
     list.forEach((e, i) => { html += `<tr><td>${i + 1}</td><td>${escapeHtml(e.name)}</td><td>${e.score}</td></tr>`; });
     html += `</table>`;
   }
-  html += `<div style="margin-top:14px; text-align:center;"><button class="btn-small" onclick="closeOverlay()">Schließen</button></div>`;
+  html += `<div style="margin-top:14px; text-align:center;"><button class="btn-small" onclick="closeOverlay()">${t('btn_close')}</button></div>`;
   const modalEl = document.getElementById('modalContent');
   modalEl.classList.remove('wide');
   modalEl.innerHTML = html;
@@ -1919,19 +2163,19 @@ function renderOfflineHighscoreModal() {
 function showOnlineHighscore() {
   const modalEl = document.getElementById('modalContent');
   modalEl.classList.remove('wide');
-  modalEl.innerHTML = `<h2>🏆 Highscore — Tisch ${TABLE_CODE}</h2><p style="color:var(--muted); font-size:13px;">Lade…</p>`;
+  modalEl.innerHTML = `<h2>${t('hs_online_title', TABLE_CODE)}</h2><p style="color:var(--muted); font-size:13px;">${t('hs_loading')}</p>`;
   document.getElementById('overlay').classList.remove('hidden');
 
   socket.emit('get_highscores', (list) => {
-    let html = `<h2>🏆 Highscore — Tisch ${TABLE_CODE}</h2>`;
+    let html = `<h2>${t('hs_online_title', TABLE_CODE)}</h2>`;
     if (!list || list.length === 0) {
-      html += `<p style="color:var(--muted); font-size:13px;">Noch keine Einträge. Spielt eine Partie zu Ende!</p>`;
+      html += `<p style="color:var(--muted); font-size:13px;">${t('hs_empty_online')}</p>`;
     } else {
-      html += `<table class="summary-table"><tr><th>#</th><th>Name</th><th>Punkte</th></tr>`;
+      html += `<table class="summary-table"><tr><th>${t('hs_col_rank')}</th><th>${t('hs_col_name')}</th><th>${t('hs_col_score')}</th></tr>`;
       list.forEach((e, i) => { html += `<tr><td>${i + 1}</td><td>${escapeHtml(e.name)}</td><td>${e.score}</td></tr>`; });
       html += `</table>`;
     }
-    html += `<div style="margin-top:14px; text-align:center;"><button class="btn-small" onclick="closeOverlay()">Schließen</button></div>`;
+    html += `<div style="margin-top:14px; text-align:center;"><button class="btn-small" onclick="closeOverlay()">${t('btn_close')}</button></div>`;
     const el2 = document.getElementById('modalContent');
     el2.classList.remove('wide');
     el2.innerHTML = html;
@@ -1950,28 +2194,25 @@ function escapeHtml(str) {
 
 function pv(playerIndex, verb3rd) {
   const name = escapeHtml(PLAYER_NAMES[playerIndex]);
-  if (playerIndex === MY_SEAT && name === 'Du') {
-    const du = { sagt: 'sagst', spielt: 'spielst', gewinnt: 'gewinnst' };
-    return { name, verb: du[verb3rd] || verb3rd };
-  }
-  return { name, verb: verb3rd };
+  const isMe = playerIndex === MY_SEAT;
+  return { name, verb: t('pv_verb', verb3rd, isMe) };
 }
 
 function confirmReset() {
   let html, actionBtn;
   if (MODE === 'online') {
-    html = `<h2>Tisch verlassen?</h2>`;
-    html += `<p style="color:var(--muted); font-size:13px;">Dein Platz wird wieder von einer KI übernommen. Du kehrst zur Startseite zurück.</p>`;
-    actionBtn = `<button class="btn-main" onclick="leaveTable()">Ja, verlassen</button>`;
+    html = `<h2>${t('confirm_leave_title')}</h2>`;
+    html += `<p style="color:var(--muted); font-size:13px;">${t('confirm_leave_text')}</p>`;
+    actionBtn = `<button class="btn-main" onclick="leaveTable()">${t('btn_confirm_leave')}</button>`;
   } else {
-    html = `<h2>Spiel zurücksetzen?</h2>`;
-    html += `<p style="color:var(--muted); font-size:13px;">Der aktuelle Spielstand und der gespeicherte Fortschritt gehen verloren.</p>`;
-    actionBtn = `<button class="btn-main" onclick="resetGame()">Neues Spiel starten</button>
-      <button class="btn-main" onclick="backToStart()">Zum Start zurückkehren</button>`;
+    html = `<h2>${t('confirm_reset_title')}</h2>`;
+    html += `<p style="color:var(--muted); font-size:13px;">${t('confirm_reset_text')}</p>`;
+    actionBtn = `<button class="btn-main" onclick="resetGame()">${t('btn_new_game_start')}</button>
+      <button class="btn-main" onclick="backToStart()">${t('btn_back_to_start')}</button>`;
   }
   html += `<div style="display:flex; gap:10px; justify-content:center; margin-top:14px;">`;
   html += actionBtn;
-  html += `<button class="btn-small" onclick="closeOverlay()">Abbrechen</button>`;
+  html += `<button class="btn-small" onclick="closeOverlay()">${t('btn_cancel')}</button>`;
   html += `</div>`;
   const modalEl = document.getElementById('modalContent');
   modalEl.classList.remove('wide');
@@ -1980,11 +2221,11 @@ function confirmReset() {
 }
 
 function confirmEndTable() {
-  let html = `<h2>Tisch beenden?</h2>`;
-  html += `<p style="color:var(--muted); font-size:13px;">Der gesamte Tisch wird gelöscht und alle Teilnehmer werden zur Startseite zurückgeschickt.</p>`;
+  let html = `<h2>${t('confirm_end_title')}</h2>`;
+  html += `<p style="color:var(--muted); font-size:13px;">${t('confirm_end_text')}</p>`;
   html += `<div style="display:flex; gap:10px; justify-content:center; margin-top:14px;">`;
-  html += `<button class="btn-main" onclick="endTable()">Ja, Tisch beenden</button>`;
-  html += `<button class="btn-small" onclick="closeOverlay()">Abbrechen</button>`;
+  html += `<button class="btn-main" onclick="endTable()">${t('btn_confirm_end')}</button>`;
+  html += `<button class="btn-small" onclick="closeOverlay()">${t('btn_cancel')}</button>`;
   html += `</div>`;
   const modalEl = document.getElementById('modalContent');
   modalEl.classList.remove('wide');
@@ -2005,8 +2246,8 @@ function resetGame() {
   state.round = 1;
   shuffleSeatsOffline();
   state.dealerIndex = 0;
-  log('<span class="log-entry highlight">— Neues Spiel gestartet —</span>');
-  log('Du spielst gegen Anke, Bruno und Carla. Viel Glück!');
+  log(`<span class="log-entry highlight">— ${t('log_new_game')} —</span>`);
+  log(t('log_solo_intro'));
   startRound();
 }
 
@@ -2018,12 +2259,13 @@ function backToStart() {
 
 function showResumePrompt(saved) {
   const s = saved.state;
-  let html = `<h2>Spielstand gefunden</h2>`;
-  html += `<p style="color:var(--muted); font-size:13px;">Es wurde ein gespeicherter Spielstand gefunden (Runde ${s.round}/${MAX_ROUNDS}, Punkte: ${PLAYER_NAMES.map((n, i) => escapeHtml(n) + ': ' + s.scores[i]).join(', ')}).</p>`;
-  html += `<p style="color:var(--muted); font-size:13px;">Möchtest du fortsetzen oder ein neues Spiel starten?</p>`;
+  const scoresStr = PLAYER_NAMES.map((n, i) => escapeHtml(n) + ': ' + s.scores[i]).join(', ');
+  let html = `<h2>${t('resume_title')}</h2>`;
+  html += `<p style="color:var(--muted); font-size:13px;">${t('resume_text', s.round, MAX_ROUNDS, scoresStr)}</p>`;
+  html += `<p style="color:var(--muted); font-size:13px;">${t('resume_question')}</p>`;
   html += `<div style="display:flex; gap:10px; justify-content:center; margin-top:14px;">`;
-  html += `<button class="btn-main" onclick="resumeGame()">Fortsetzen</button>`;
-  html += `<button class="btn-small" onclick="discardSaveAndStart()">Neues Spiel</button>`;
+  html += `<button class="btn-main" onclick="resumeGame()">${t('btn_resume')}</button>`;
+  html += `<button class="btn-small" onclick="discardSaveAndStart()">${t('btn_discard')}</button>`;
   html += `</div>`;
   const modalEl = document.getElementById('modalContent');
   modalEl.classList.remove('wide');
@@ -2037,8 +2279,8 @@ function discardSaveAndStart() {
   shuffleSeatsOffline();
   state.dealerIndex = 0;
   document.getElementById('logArea').innerHTML = '';
-  log('<span class="log-entry highlight">— Willkommen bei Vaticinium! —</span>');
-  log('Du spielst gegen Anke, Bruno und Carla. Viel Glück!');
+  log(`<span class="log-entry highlight">— ${t('log_welcome')} —</span>`);
+  log(t('log_solo_intro'));
   startRound();
 }
 
@@ -2050,7 +2292,7 @@ function resumeGame() {
   if (saved.seats) SEATS = saved.seats;
   if (typeof saved.mySeat === 'number') MY_SEAT = saved.mySeat;
   document.getElementById('logArea').innerHTML = saved.logHTML || '';
-  log('<span class="log-entry highlight">— Spielstand geladen —</span>');
+  log(`<span class="log-entry highlight">— ${t('log_save_loaded')} —</span>`);
   render();
   if (state.phase === 'bidding') processBidding();
   else if (state.phase === 'playing') playTurn();
@@ -2061,9 +2303,66 @@ function showRules() {
   const modal = document.getElementById('modalContent');
   modal.classList.add('wide');
   modal.innerHTML = `
-    <h2>Spielregeln — Vaticinium</h2>
+    <h2>${t('rules_title')}</h2>
     <div class="rules-content">
-      <h3>Grundlagen</h3>
+      ${LANG === 'en' ? `
+      <p>Played with 60 cards: values 1–13 in 4 suits, plus 4 Wizards (W) and 4 Jesters (J).
+      The game runs over ${MAX_ROUNDS} rounds. In round 1 each player gets 1 card, round 2 two cards,
+      and so on up to round ${MAX_ROUNDS}.</p>
+
+      <h3>Trump</h3>
+      <p>After dealing, one card is revealed to determine the trump suit. If it is a Wizard,
+      the dealer chooses the trump suit. If it is a Jester, there is no trump this round.
+      In the last round the deck is empty, so there is no trump card.</p>
+
+      <h3>Bidding</h3>
+      <p>Before each round, every player bids how many tricks they will take (0 up to the round number).
+      Bidding proceeds in order starting left of the dealer.</p>
+
+      <div class="special">
+        <b>Special rule — Sum restriction:</b> The sum of all bids may not exactly equal the number of
+        tricks available (= round number). The last bidder therefore cannot choose the value that would
+        bring the total to exactly that number.
+      </div>
+
+      <div class="special">
+        <b>Special rule — Round 1:</b> In round 1 each player has only one card. During bidding you can
+        see every other player's card, but not your own. Your bid must be placed "blind."
+      </div>
+
+      <h3>Playing</h3>
+      <p>The player left of the dealer leads the first trick. Players must follow the led suit if they
+      can — Wizards and Jesters may always be played. If you cannot follow suit, play any card.</p>
+
+      <ul>
+        <li><b>Wizard:</b> always wins the trick regardless of what else was played.
+        If multiple Wizards are played, the first one wins.</li>
+        <li><b>Jester:</b> always loses and can never win a trick — even if everyone plays Jesters,
+        the first Jester played wins.</li>
+        <li><b>Trump:</b> beats all cards of the led suit (unless a Wizard is in the trick).</li>
+        <li>Without a Wizard or trump, the highest card of the led suit wins.</li>
+      </ul>
+
+      <h3>Scoring</h3>
+      <ul>
+        <li><b>Exact bid:</b> +20 points, plus 10 points for each trick taken.</li>
+        <li><b>Missed bid (over or under):</b> −10 points for each trick difference.</li>
+      </ul>
+      <p>After ${MAX_ROUNDS} rounds, the player with the highest total score wins.</p>
+
+      <h3>Solo &amp; Multiplayer</h3>
+      <p><b>Play Solo:</b> You play alone against 3 AI opponents. Your progress is saved automatically
+      in the browser so you can pause and continue anytime.</p>
+      <p><b>Create Table:</b> Start a multiplayer table and get a 4-digit code. Friends can use the code
+      to take over AI seats. Any remaining empty seats are filled by AI at start.</p>
+      <p>Optionally enable <b>Late Join</b>: players can join during a running game and take an AI seat —
+      as long as at least 4 rounds remain after the current one. The AI plays the current round to
+      completion; from the next round the human plays normally.</p>
+      <p><b>Join Table:</b> Use a friend's code to take a seat at their table. If Late Join is enabled,
+      you can join mid-game — you see the current state immediately and take over from the next round.</p>
+      <p>Multiplayer runs on a dedicated server. All participants must be able to reach it
+      (e.g. on a home network or via VPN).</p>
+      ` : `
       <p>Gespielt wird mit 60 Karten: in 4 Farben die Werte 1–13, dazu 4 Zauberer (Z) und 4 Narren (N).
       Das Spiel geht über ${MAX_ROUNDS} Runden. In Runde 1 erhält jeder Spieler 1 Karte, in Runde 2 zwei Karten,
       und so weiter bis Runde ${MAX_ROUNDS}.</p>
@@ -2127,9 +2426,10 @@ function showRules() {
       möglich — du siehst sofort den aktuellen Spielstand und übernimmst nach Rundenende.</p>
       <p>Der Multiplayer läuft über einen eigenen Server. Alle Teilnehmer müssen den Server erreichen können
       (z.B. im Heimnetz oder über VPN).</p>
+      `}
     </div>
     <div style="margin-top:16px; text-align:center;">
-      <button class="btn-small" onclick="closeOverlay()">Schließen</button>
+      <button class="btn-small" onclick="closeOverlay()">${t('btn_close')}</button>
     </div>
   `;
   document.getElementById('overlay').classList.remove('hidden');
@@ -2176,6 +2476,7 @@ function init() {
   showLobby();
 }
 
+applyLang();
 init();
 </script>
 </body>

@@ -1,5 +1,7 @@
 # Vaticinium
 
+<p align="center"><img src="public/logo.svg" width="160" alt="Vaticinium Logo"/></p>
+
 Ein vollständiges Wizard-Kartenspiel im Browser — Solo gegen KI oder Multiplayer mit Freunden über einen eigenen Node.js-Server.
 
 ![Lobby](docs/lobby.png)

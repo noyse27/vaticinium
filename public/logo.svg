@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <title>Vaticinium</title>
+  <circle cx="100" cy="100" r="98" fill="#0a1220" stroke="#d8b35c" stroke-width="2"/>
+  <circle cx="100" cy="100" r="82" fill="none" stroke="#d8b35c" stroke-width="0.5" opacity="0.35"/>
+  <polygon points="100,18 103.5,23 100,28 96.5,23" fill="#d8b35c"/>
+  <polygon points="100,172 103.5,177 100,182 96.5,177" fill="#d8b35c"/>
+  <polygon points="172,100 177,103.5 182,100 177,96.5" fill="#d8b35c"/>
+  <polygon points="18,100 23,103.5 28,100 23,96.5" fill="#d8b35c"/>
+  <path d="M 55,167 L 57,172 L 62,174 L 57,176 L 55,181 L 53,176 L 48,174 L 53,172 Z" fill="#d8b35c" opacity="0.5"/>
+  <path d="M 138,19 L 140,24 L 145,26 L 140,28 L 138,33 L 136,28 L 131,26 L 136,24 Z" fill="#d8b35c" opacity="0.5"/>
+  <path d="M 55,19 L 57,24 L 62,26 L 57,28 L 55,33 L 53,28 L 48,26 L 53,24 Z" fill="#d8b35c" opacity="0.5"/>
+  <path d="M 138,167 L 140,172 L 145,174 L 140,176 L 138,181 L 136,176 L 131,174 L 136,172 Z" fill="#d8b35c" opacity="0.5"/>
+  <path d="M 35,100 C 55,58 145,58 165,100 C 145,142 55,142 35,100 Z" fill="#162840"/>
+  <path d="M 35,100 C 55,58 145,58 165,100 C 145,142 55,142 35,100 Z" fill="none" stroke="#d8b35c" stroke-width="2"/>
+  <circle cx="100" cy="100" r="28" fill="#0a1220" stroke="#d8b35c" stroke-width="1.5"/>
+  <circle cx="100" cy="100" r="22" fill="none" stroke="#d8b35c" stroke-width="0.5" opacity="0.4"/>
+  <path d="M 100,78 L 106,94 L 122,100 L 106,106 L 100,122 L 94,106 L 78,100 L 94,94 Z" fill="#d8b35c"/>
+  <circle cx="100" cy="100" r="5" fill="#f2d882"/>
+  <line x1="35" y1="100" x2="20" y2="100" stroke="#d8b35c" stroke-width="1" opacity="0.4"/>
+  <line x1="165" y1="100" x2="180" y2="100" stroke="#d8b35c" stroke-width="1" opacity="0.4"/>
+</svg>

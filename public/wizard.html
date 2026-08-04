@@ -683,6 +683,7 @@
 <div style="text-align:center; margin-bottom:6px; display:flex; gap:8px; justify-content:center; align-items:center; flex-wrap:wrap;">
   <button class="btn-small" id="btnRules" onclick="showRules()" data-i18n="btn_rules">📖 Spielregeln</button>
   <button class="btn-small" id="btnHighscore" onclick="showHighscore()" data-i18n="btn_highscore">🏆 Highscore</button>
+  <button class="btn-small" id="btnAuth" onclick="showAuthModal()">👤 Konto</button>
   <span style="display:inline-flex; gap:2px; margin-left:4px;">
     <button class="flag-btn active" id="flagDe" onclick="setLang('de')" title="Deutsch">DE</button>
     <button class="flag-btn" id="flagEn" onclick="setLang('en')" title="English">EN</button>
@@ -763,6 +764,11 @@
    ============================================================ */
 
 let LANG = localStorage.getItem('vat_lang') || 'de';
+
+/* ── Auth state ── */
+const AUTH_TOKEN_KEY = 'vat_auth_token';
+let AUTH_TOKEN = localStorage.getItem(AUTH_TOKEN_KEY) || null;
+let CURRENT_USER = null;
 
 const T = {
   de: {
@@ -855,6 +861,23 @@ const T = {
     latejoin_log: (names) => `🙋 ${names} übernimmt ab der nächsten Runde!`,
     rules_title: 'Spielregeln — Vaticinium',
     locale_time: 'de-DE',
+    auth_btn: '👤 Konto',
+    auth_logged_in_label: (u) => `👤 ${u}`,
+    auth_tab_login: 'Anmelden', auth_tab_register: 'Registrieren',
+    auth_login_title: 'Anmelden', auth_register_title: 'Registrieren',
+    auth_username_ph: 'Benutzername', auth_password_ph: 'Passwort',
+    auth_btn_login: 'Anmelden', auth_btn_register: 'Registrieren', auth_btn_logout: 'Abmelden',
+    auth_optional: 'Optional — nur für serverübergreifende Speicherung und Hall of Fame.',
+    auth_status_loggedin: (u) => `Angemeldet: <b>${u}</b>`,
+    auth_status_guest: 'Gast-Modus — <span style="cursor:pointer; text-decoration:underline;" onclick="showAuthModal()">anmelden</span> für Cloud-Speicherung &amp; Hall of Fame',
+    auth_err_username_invalid: 'Benutzername: 3–20 Zeichen, nur Buchstaben, Ziffern, _ oder -',
+    auth_err_password_too_short: 'Passwort: mindestens 6 Zeichen.',
+    auth_err_username_taken: 'Benutzername bereits vergeben.',
+    auth_err_invalid_credentials: 'Benutzername oder Passwort falsch.',
+    auth_err_not_authenticated: 'Nicht angemeldet.',
+    hs_global_title: '🏆 Hall of Fame',
+    hs_global_empty: 'Noch keine Einträge. Schreibe Geschichte!',
+    hof_auto_submitted: (u) => `🏆 Dein Ergebnis wurde als <b>${u}</b> in die Hall of Fame eingetragen!`,
   },
   en: {
     subtitle_lobby: 'Play Solo against AI or join a Multiplayer table',
@@ -950,6 +973,23 @@ const T = {
     latejoin_log: (names) => `🙋 ${names} takes over from the next round!`,
     rules_title: 'Rules — Vaticinium',
     locale_time: 'en-GB',
+    auth_btn: '👤 Account',
+    auth_logged_in_label: (u) => `👤 ${u}`,
+    auth_tab_login: 'Sign In', auth_tab_register: 'Register',
+    auth_login_title: 'Sign In', auth_register_title: 'Register',
+    auth_username_ph: 'Username', auth_password_ph: 'Password',
+    auth_btn_login: 'Sign In', auth_btn_register: 'Register', auth_btn_logout: 'Sign Out',
+    auth_optional: 'Optional — only for cross-browser saves and Hall of Fame.',
+    auth_status_loggedin: (u) => `Signed in: <b>${u}</b>`,
+    auth_status_guest: 'Guest mode — <span style="cursor:pointer; text-decoration:underline;" onclick="showAuthModal()">sign in</span> for cloud saves &amp; Hall of Fame',
+    auth_err_username_invalid: 'Username: 3–20 chars, letters, digits, _ or - only.',
+    auth_err_password_too_short: 'Password: at least 6 characters.',
+    auth_err_username_taken: 'Username already taken.',
+    auth_err_invalid_credentials: 'Username or password incorrect.',
+    auth_err_not_authenticated: 'Not signed in.',
+    hs_global_title: '🏆 Hall of Fame',
+    hs_global_empty: 'No entries yet. Make history!',
+    hof_auto_submitted: (u) => `🏆 Your score was added to the Hall of Fame as <b>${u}</b>!`,
   }
 };
 
@@ -984,6 +1024,133 @@ function applyLang() {
       ? t('subtitle_lobby') : t('subtitle_solo');
   document.getElementById('flagDe').classList.toggle('active', LANG === 'de');
   document.getElementById('flagEn').classList.toggle('active', LANG === 'en');
+  updateAuthUI();
+}
+
+/* ============================================================
+   AUTH
+   ============================================================ */
+
+function updateAuthUI() {
+  const btn = document.getElementById('btnAuth');
+  if (btn) btn.textContent = CURRENT_USER ? t('auth_logged_in_label', CURRENT_USER) : t('auth_btn');
+  const statusEl = document.getElementById('authStatusLine');
+  if (statusEl) {
+    statusEl.innerHTML = CURRENT_USER
+      ? t('auth_status_loggedin', escapeHtml(CURRENT_USER))
+        + ` &nbsp;<span style="cursor:pointer; opacity:0.6; font-size:10px;" onclick="showAuthModal()">[${t('auth_btn_logout')}]</span>`
+      : t('auth_status_guest');
+  }
+}
+
+function checkAuthToken(cb) {
+  if (!AUTH_TOKEN || !socket) { cb && cb(false); return; }
+  socket.emit('auth_check', { token: AUTH_TOKEN }, (res) => {
+    if (res && res.valid) {
+      CURRENT_USER = res.username;
+    } else {
+      CURRENT_USER = null;
+      AUTH_TOKEN = null;
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+    }
+    updateAuthUI();
+    cb && cb(!!(res && res.valid));
+  });
+}
+
+function showAuthModal() {
+  const modalEl = document.getElementById('modalContent');
+  modalEl.classList.remove('wide');
+
+  if (CURRENT_USER) {
+    modalEl.innerHTML = `
+      <h2>${escapeHtml(CURRENT_USER)}</h2>
+      <p style="color:var(--muted); font-size:13px; margin:10px 0;">${t('auth_optional')}</p>
+      <div style="display:flex; gap:10px; justify-content:center; margin-top:16px;">
+        <button class="btn-main" onclick="doLogout()">${t('auth_btn_logout')}</button>
+        <button class="btn-small" onclick="closeOverlay()">${t('btn_cancel')}</button>
+      </div>`;
+  } else {
+    modalEl.innerHTML = `
+      <div style="display:flex; margin-bottom:16px; border-bottom:1px solid #2c3f5c;">
+        <button id="tabLogin" onclick="switchAuthTab('login')" style="flex:1; background:transparent; border:none; padding:10px; color:var(--gold); cursor:pointer; font-size:14px; border-bottom:2px solid var(--gold);">${t('auth_tab_login')}</button>
+        <button id="tabRegister" onclick="switchAuthTab('register')" style="flex:1; background:transparent; border:none; padding:10px; color:var(--muted); cursor:pointer; font-size:14px; border-bottom:2px solid transparent;">${t('auth_tab_register')}</button>
+      </div>
+      <p style="color:var(--muted); font-size:11px; margin-bottom:14px;">${t('auth_optional')}</p>
+      <div id="authForm"></div>`;
+    renderAuthForm('login');
+  }
+  document.getElementById('overlay').classList.remove('hidden');
+  setTimeout(() => { const f = document.getElementById('authUsernameInput'); if (f) f.focus(); }, 50);
+}
+
+function switchAuthTab(tab) {
+  document.getElementById('tabLogin').style.color = tab === 'login' ? 'var(--gold)' : 'var(--muted)';
+  document.getElementById('tabLogin').style.borderBottom = tab === 'login' ? '2px solid var(--gold)' : '2px solid transparent';
+  document.getElementById('tabRegister').style.color = tab === 'register' ? 'var(--gold)' : 'var(--muted)';
+  document.getElementById('tabRegister').style.borderBottom = tab === 'register' ? '2px solid var(--gold)' : '2px solid transparent';
+  renderAuthForm(tab);
+}
+
+function renderAuthForm(tab) {
+  const isLogin = tab === 'login';
+  document.getElementById('authForm').innerHTML = `
+    <input type="text" id="authUsernameInput" class="lobby-name-input" style="width:100%; margin-bottom:8px;"
+      placeholder="${t('auth_username_ph')}" maxlength="20" autocomplete="username">
+    <input type="password" id="authPasswordInput" class="lobby-name-input" style="width:100%; margin-bottom:12px;"
+      placeholder="${t('auth_password_ph')}" maxlength="64" autocomplete="${isLogin ? 'current-password' : 'new-password'}">
+    <div id="authError" style="color:var(--red); font-size:12px; min-height:16px; margin-bottom:10px;"></div>
+    <button class="btn-main" onclick="${isLogin ? 'doLogin()' : 'doRegister()'}">
+      ${isLogin ? t('auth_btn_login') : t('auth_btn_register')}
+    </button>`;
+  const pwInput = document.getElementById('authPasswordInput');
+  if (pwInput) pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') isLogin ? doLogin() : doRegister(); });
+  const unInput = document.getElementById('authUsernameInput');
+  if (unInput) { unInput.addEventListener('keydown', e => { if (e.key === 'Enter') pwInput && pwInput.focus(); }); unInput.focus(); }
+}
+
+function doLogin() {
+  const username = (document.getElementById('authUsernameInput')?.value || '').trim();
+  const password = document.getElementById('authPasswordInput')?.value || '';
+  const errEl = document.getElementById('authError');
+  if (errEl) errEl.textContent = '';
+  if (!socket) return;
+  socket.emit('auth_login', { username, password }, (res) => {
+    if (res.error) { if (errEl) errEl.textContent = t('auth_err_' + res.error) || res.error; return; }
+    AUTH_TOKEN = res.token;
+    CURRENT_USER = res.username;
+    localStorage.setItem(AUTH_TOKEN_KEY, AUTH_TOKEN);
+    closeOverlay();
+    updateAuthUI();
+    if (document.getElementById('lobby').classList.contains('hidden') === false) renderLobbyHome();
+  });
+}
+
+function doRegister() {
+  const username = (document.getElementById('authUsernameInput')?.value || '').trim();
+  const password = document.getElementById('authPasswordInput')?.value || '';
+  const errEl = document.getElementById('authError');
+  if (errEl) errEl.textContent = '';
+  if (!socket) return;
+  socket.emit('auth_register', { username, password }, (res) => {
+    if (res.error) { if (errEl) errEl.textContent = t('auth_err_' + res.error) || res.error; return; }
+    AUTH_TOKEN = res.token;
+    CURRENT_USER = res.username;
+    localStorage.setItem(AUTH_TOKEN_KEY, AUTH_TOKEN);
+    closeOverlay();
+    updateAuthUI();
+    if (document.getElementById('lobby').classList.contains('hidden') === false) renderLobbyHome();
+  });
+}
+
+function doLogout() {
+  if (socket && AUTH_TOKEN) socket.emit('auth_logout', { token: AUTH_TOKEN });
+  AUTH_TOKEN = null;
+  CURRENT_USER = null;
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+  closeOverlay();
+  updateAuthUI();
+  if (document.getElementById('lobby').classList.contains('hidden') === false) renderLobbyHome();
 }
 
 /* ============================================================
@@ -1160,6 +1327,7 @@ function renderLobbyHome() {
       <h2>${t('lobby_title')}</h2>
       <p>${t('lobby_p1')}</p>
       <p style="font-size:11px; color:var(--muted);">${t('lobby_p2')}</p>
+      <p id="authStatusLine" style="font-size:11px; color:var(--muted); margin-top:6px;"></p>
       <div style="margin-top:18px; display:flex; flex-direction:column; gap:10px; align-items:center;">
         <button class="btn-main" onclick="startOfflineGame()">${t('btn_solo')}</button>
         <div class="lobby-divider">— ${LANG === 'en' ? 'or Multiplayer' : 'oder Multiplayer'} —</div>
@@ -1168,6 +1336,7 @@ function renderLobbyHome() {
       </div>
     </div>
   `;
+  updateAuthUI();
 }
 
 function renderCreateTable() {
@@ -1214,7 +1383,7 @@ function startOfflineGame() {
   MY_SEAT = 0;
   IS_HOST = true;
   SEATS = ['human', 'AI', 'AI', 'AI'];
-  PLAYER_NAMES = ['Du', 'Anke', 'Bruno', 'Carla'];
+  PLAYER_NAMES = T[LANG].offline_names.slice();
 
   document.getElementById('lobby').classList.add('hidden');
   document.getElementById('topBar').classList.remove('hidden');
@@ -1222,17 +1391,39 @@ function startOfflineGame() {
   document.getElementById('tableCodeDisplay').textContent = '';
   document.getElementById('saveBtn').classList.remove('hidden');
 
-  const saved = loadGame();
-  if (saved && saved.state) {
-    showResumePrompt(saved);
+  if (AUTH_TOKEN && socket && socket.connected) {
+    socket.emit('load_game_server', { token: AUTH_TOKEN }, (res) => {
+      const localSave = loadGame();
+      const serverSave = res && res.save;
+      let best = null;
+      if (serverSave && localSave) {
+        best = new Date(serverSave.savedAt || 0) >= new Date(localSave.savedAt || 0) ? serverSave : localSave;
+      } else {
+        best = serverSave || localSave;
+      }
+      if (best && best.state) {
+        showResumePrompt(best);
+      } else {
+        newSoloGame();
+      }
+    });
   } else {
-    shuffleSeatsOffline();
-    state.dealerIndex = 0;
-    document.getElementById('logArea').innerHTML = '';
-    log(`<span class="log-entry highlight">— ${t('log_welcome')} —</span>`);
-    log(t('log_solo_intro'));
-    startRound();
+    const saved = loadGame();
+    if (saved && saved.state) {
+      showResumePrompt(saved);
+    } else {
+      newSoloGame();
+    }
   }
+}
+
+function newSoloGame() {
+  shuffleSeatsOffline();
+  state.dealerIndex = 0;
+  document.getElementById('logArea').innerHTML = '';
+  log(`<span class="log-entry highlight">— ${t('log_welcome')} —</span>`);
+  log(t('log_solo_intro'));
+  startRound();
 }
 
 /* ---------- Online: Tisch erstellen ---------- */
@@ -1765,7 +1956,10 @@ function endRound() {
     log(t('log_round_result', escapeHtml(PLAYER_NAMES[p]), bid, won, points, state.scores[p]));
   }
   state.lastRoundResults = results;
-  if (MODE === 'offline') saveGame(false);
+  if (MODE === 'offline') {
+    saveGame(false);
+    saveGameToServer();
+  }
   showRoundSummary(results);
 }
 
@@ -2047,6 +2241,7 @@ function renderPlayerHand() {
    ============================================================ */
 
 const SAVE_KEY = 'wizard_save_v1';
+let PENDING_RESUME_SAVE = null;
 
 function saveGame(showStatus = false) {
   try {
@@ -2054,10 +2249,21 @@ function saveGame(showStatus = false) {
       state, logHTML: document.getElementById('logArea').innerHTML,
       playerNames: PLAYER_NAMES, seats: SEATS, mySeat: MY_SEAT
     }));
-    if (showStatus) flashSaveStatus(t('saved_ok'));
+    if (showStatus) {
+      saveGameToServer(() => flashSaveStatus(t('saved_ok')));
+    }
   } catch (e) {
     if (showStatus) flashSaveStatus(t('saved_fail'));
   }
+}
+
+function saveGameToServer(cb) {
+  if (!AUTH_TOKEN || !socket || !socket.connected) { cb && cb(); return; }
+  socket.emit('save_game_server', {
+    token: AUTH_TOKEN,
+    state, logHTML: document.getElementById('logArea').innerHTML,
+    playerNames: PLAYER_NAMES, seats: SEATS, mySeat: MY_SEAT
+  }, () => { cb && cb(); });
 }
 
 function manualSave() { saveGame(true); }
@@ -2076,7 +2282,10 @@ function loadGame() {
   } catch (e) { return null; }
 }
 
-function clearSave() { localStorage.removeItem(SAVE_KEY); }
+function clearSave() {
+  localStorage.removeItem(SAVE_KEY);
+  if (AUTH_TOKEN && socket && socket.connected) socket.emit('delete_save_server', { token: AUTH_TOKEN });
+}
 
 /* ============================================================
    HIGHSCORE (offline)
@@ -2112,6 +2321,23 @@ function addOfflineHighscore(name, score) {
 }
 
 function maybeShowHighscoreEntry(score) {
+  // Logged-in users: auto-submit to server HoF, no name prompt
+  if (CURRENT_USER && AUTH_TOKEN && socket && socket.connected) {
+    socket.emit('submit_hall_of_fame', { token: AUTH_TOKEN, score }, () => {});
+    const modalEl = document.getElementById('modalContent');
+    modalEl.classList.remove('wide');
+    modalEl.innerHTML = `
+      <h2>${t('hs_global_title')}</h2>
+      <p style="color:var(--gold); font-size:15px; margin:14px 0;">${t('hof_auto_submitted', escapeHtml(CURRENT_USER))}</p>
+      <div style="margin-top:14px;">
+        <button class="btn-small" onclick="showHallOfFame()">${t('btn_highscore')}</button>
+        &nbsp;
+        <button class="btn-small" onclick="closeOverlay()">${t('btn_close')}</button>
+      </div>`;
+    document.getElementById('overlay').classList.remove('hidden');
+    return true;
+  }
+  // Guest: local HoF with name prompt
   if (!qualifiesForOfflineHighscore(score)) return false;
   const modalEl = document.getElementById('modalContent');
   modalEl.classList.remove('wide');
@@ -2141,9 +2367,36 @@ function submitOfflineHighscore(score) {
 function showHighscore() {
   if (MODE === 'online' && TABLE_CODE && socket) {
     showOnlineHighscore();
+  } else if (CURRENT_USER && socket && socket.connected) {
+    showHallOfFame();
   } else {
     renderOfflineHighscoreModal();
   }
+}
+
+function showHallOfFame() {
+  initSocket();
+  const modalEl = document.getElementById('modalContent');
+  modalEl.classList.remove('wide');
+  modalEl.innerHTML = `<h2>${t('hs_global_title')}</h2><p style="color:var(--muted); font-size:13px;">${t('hs_loading')}</p>`;
+  document.getElementById('overlay').classList.remove('hidden');
+  socket.emit('get_hall_of_fame', (list) => {
+    let html = `<h2>${t('hs_global_title')}</h2>`;
+    if (!list || list.length === 0) {
+      html += `<p style="color:var(--muted); font-size:13px;">${t('hs_global_empty')}</p>`;
+    } else {
+      html += `<table class="summary-table"><tr><th>${t('hs_col_rank')}</th><th>${t('hs_col_name')}</th><th>${t('hs_col_score')}</th></tr>`;
+      list.forEach((e, i) => {
+        const isMe = CURRENT_USER && e.username.toLowerCase() === CURRENT_USER.toLowerCase();
+        html += `<tr${isMe ? ' style="color:var(--gold);"' : ''}><td>${i + 1}</td><td>${escapeHtml(e.username)}</td><td>${e.score}</td></tr>`;
+      });
+      html += `</table>`;
+    }
+    html += `<div style="margin-top:14px; text-align:center;"><button class="btn-small" onclick="closeOverlay()">${t('btn_close')}</button></div>`;
+    const el2 = document.getElementById('modalContent');
+    el2.classList.remove('wide');
+    el2.innerHTML = html;
+  });
 }
 
 function renderOfflineHighscoreModal() {
@@ -2261,8 +2514,10 @@ function backToStart() {
 }
 
 function showResumePrompt(saved) {
+  PENDING_RESUME_SAVE = saved;
   const s = saved.state;
-  const scoresStr = PLAYER_NAMES.map((n, i) => escapeHtml(n) + ': ' + s.scores[i]).join(', ');
+  const names = saved.playerNames || PLAYER_NAMES;
+  const scoresStr = names.map((n, i) => escapeHtml(n) + ': ' + s.scores[i]).join(', ');
   let html = `<h2>${t('resume_title')}</h2>`;
   html += `<p style="color:var(--muted); font-size:13px;">${t('resume_text', s.round, MAX_ROUNDS, scoresStr)}</p>`;
   html += `<p style="color:var(--muted); font-size:13px;">${t('resume_question')}</p>`;
@@ -2277,18 +2532,17 @@ function showResumePrompt(saved) {
 }
 
 function discardSaveAndStart() {
+  PENDING_RESUME_SAVE = null;
   clearSave();
+  if (AUTH_TOKEN && socket && socket.connected) socket.emit('delete_save_server', { token: AUTH_TOKEN });
   document.getElementById('overlay').classList.add('hidden');
-  shuffleSeatsOffline();
-  state.dealerIndex = 0;
-  document.getElementById('logArea').innerHTML = '';
-  log(`<span class="log-entry highlight">— ${t('log_welcome')} —</span>`);
-  log(t('log_solo_intro'));
-  startRound();
+  newSoloGame();
 }
 
 function resumeGame() {
-  const saved = loadGame();
+  const saved = PENDING_RESUME_SAVE || loadGame();
+  PENDING_RESUME_SAVE = null;
+  if (!saved) return;
   document.getElementById('overlay').classList.add('hidden');
   Object.assign(state, saved.state);
   if (saved.playerNames) PLAYER_NAMES = saved.playerNames;
@@ -2443,18 +2697,20 @@ function showRules() {
    ============================================================ */
 
 function init() {
+  // Always connect socket so auth + HoF work even in solo mode
+  initSocket();
+
   try {
     const raw = localStorage.getItem(ONLINE_SESSION_KEY);
     if (raw) {
       const session = JSON.parse(raw);
       if (session && session.code && session.clientId) {
         CLIENT_ID = session.clientId;
-        initSocket();
 
         socket.emit('reconnect_table', { code: session.code, clientId: session.clientId }, (res) => {
           if (res.error) {
             localStorage.removeItem(ONLINE_SESSION_KEY);
-            showLobby();
+            finishInit();
             return;
           }
           TABLE_CODE = session.code;
@@ -2471,12 +2727,22 @@ function init() {
             showGameView();
           }
         });
+        // Also check auth in parallel
+        if (AUTH_TOKEN) checkAuthToken(() => updateAuthUI());
         return;
       }
     }
   } catch (e) { /* ignore */ }
 
-  showLobby();
+  finishInit();
+}
+
+function finishInit() {
+  if (AUTH_TOKEN) {
+    checkAuthToken(() => showLobby());
+  } else {
+    showLobby();
+  }
 }
 
 applyLang();

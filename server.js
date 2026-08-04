@@ -4,6 +4,8 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 
 const app = express();
@@ -14,6 +16,32 @@ const PORT = process.env.PORT || 3000;
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 200 }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'wizard.html')));
+
+// ─── Benutzerverwaltung ──────────────────────────────────────────────────────
+
+const DATA_DIR = path.join(__dirname, 'data');
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+
+function loadJSON(file) {
+  try { return JSON.parse(fs.readFileSync(path.join(DATA_DIR, file), 'utf8')); }
+  catch (e) { return null; }
+}
+function saveJSON(file, data) {
+  fs.writeFileSync(path.join(DATA_DIR, file), JSON.stringify(data, null, 2), 'utf8');
+}
+function getUsers() { return loadJSON('users.json') || {}; }
+function setUsers(d) { saveJSON('users.json', d); }
+function getSaves() { return loadJSON('saves.json') || {}; }
+function setSaves(d) { saveJSON('saves.json', d); }
+function getHoF() { return loadJSON('hall_of_fame.json') || []; }
+function setHoF(d) { saveJSON('hall_of_fame.json', d); }
+
+function hashPassword(password, salt) {
+  return crypto.pbkdf2Sync(password, salt, 100000, 32, 'sha256').toString('hex');
+}
+function generateToken() { return crypto.randomBytes(32).toString('hex'); }
+
+const sessions = new Map(); // token -> username key (lowercase)
 
 // ─── Konstanten ───────────────────────────────────────────────────────────────
 
@@ -695,6 +723,100 @@ io.on('connection', (socket) => {
     if (!table || table.hostClientId !== myClientId) return;
     io.to(`t:${myCode}`).emit('table_deleted');
     delete tables[myCode];
+  });
+
+  // ─── Auth ─────────────────────────────────────────────────────────────────
+
+  socket.on('auth_register', ({ username, password } = {}, cb) => {
+    const u = String(username || '').trim();
+    const p = String(password || '');
+    if (!/^[a-zA-Z0-9_-]{3,20}$/.test(u)) return cb({ error: 'username_invalid' });
+    if (p.length < 6) return cb({ error: 'password_too_short' });
+    const users = getUsers();
+    if (users[u.toLowerCase()]) return cb({ error: 'username_taken' });
+    const salt = crypto.randomBytes(16).toString('hex');
+    users[u.toLowerCase()] = { username: u, passwordHash: hashPassword(p, salt), salt, created: new Date().toISOString() };
+    setUsers(users);
+    const token = generateToken();
+    sessions.set(token, u.toLowerCase());
+    cb({ token, username: u });
+  });
+
+  socket.on('auth_login', ({ username, password } = {}, cb) => {
+    const u = String(username || '').trim().toLowerCase();
+    const p = String(password || '');
+    const users = getUsers();
+    const entry = users[u];
+    if (!entry) return cb({ error: 'invalid_credentials' });
+    if (hashPassword(p, entry.salt) !== entry.passwordHash) return cb({ error: 'invalid_credentials' });
+    const token = generateToken();
+    sessions.set(token, u);
+    cb({ token, username: entry.username || u });
+  });
+
+  socket.on('auth_check', ({ token } = {}, cb) => {
+    const key = token ? sessions.get(String(token)) : null;
+    if (!key) return cb({ valid: false });
+    const users = getUsers();
+    const entry = users[key];
+    cb({ valid: true, username: entry ? (entry.username || key) : key });
+  });
+
+  socket.on('auth_logout', ({ token } = {}) => {
+    if (token) sessions.delete(String(token));
+  });
+
+  // ─── Cloud-Spielstand ─────────────────────────────────────────────────────
+
+  socket.on('save_game_server', ({ token, state: gs, logHTML, playerNames, seats, mySeat } = {}, cb) => {
+    const key = token ? sessions.get(String(token)) : null;
+    if (!key) { cb && cb({ error: 'not_authenticated' }); return; }
+    const saves = getSaves();
+    saves[key] = { state: gs, logHTML, playerNames, seats, mySeat, savedAt: new Date().toISOString() };
+    setSaves(saves);
+    cb && cb({});
+  });
+
+  socket.on('load_game_server', ({ token } = {}, cb) => {
+    const key = token ? sessions.get(String(token)) : null;
+    if (!key) return cb({ error: 'not_authenticated' });
+    const saves = getSaves();
+    cb({ save: saves[key] || null });
+  });
+
+  socket.on('delete_save_server', ({ token } = {}) => {
+    const key = token ? sessions.get(String(token)) : null;
+    if (!key) return;
+    const saves = getSaves();
+    delete saves[key];
+    setSaves(saves);
+  });
+
+  // ─── Hall of Fame ─────────────────────────────────────────────────────────
+
+  socket.on('get_hall_of_fame', (cb) => {
+    cb(getHoF().slice(0, 20));
+  });
+
+  socket.on('submit_hall_of_fame', ({ token, score } = {}, cb) => {
+    const key = token ? sessions.get(String(token)) : null;
+    if (!key) { cb && cb({ error: 'not_authenticated' }); return; }
+    const sc = Number(score);
+    if (!Number.isFinite(sc)) { cb && cb({ error: 'invalid_score' }); return; }
+    const users = getUsers();
+    const entry = users[key];
+    const displayName = entry ? (entry.username || key) : key;
+    const hof = getHoF();
+    const idx = hof.findIndex(e => e.username.toLowerCase() === key);
+    if (idx >= 0) {
+      if (sc > hof[idx].score) { hof[idx].score = sc; hof[idx].date = new Date().toISOString(); }
+    } else {
+      hof.push({ username: displayName, score: sc, date: new Date().toISOString() });
+    }
+    hof.sort((a, b) => b.score - a.score);
+    if (hof.length > 50) hof.length = 50;
+    setHoF(hof);
+    cb && cb({});
   });
 
   socket.on('disconnect', () => {

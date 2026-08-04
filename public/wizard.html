@@ -1100,47 +1100,54 @@ function renderAuthForm(tab) {
     <input type="password" id="authPasswordInput" class="lobby-name-input" style="width:100%; margin-bottom:12px;"
       placeholder="${t('auth_password_ph')}" maxlength="64" autocomplete="${isLogin ? 'current-password' : 'new-password'}">
     <div id="authError" style="color:var(--red); font-size:12px; min-height:16px; margin-bottom:10px;"></div>
-    <button class="btn-main" onclick="${isLogin ? 'doLogin()' : 'doRegister()'}">
+    <button id="authSubmitBtn" class="btn-main">
       ${isLogin ? t('auth_btn_login') : t('auth_btn_register')}
     </button>`;
+  const doAction = isLogin ? doLogin : doRegister;
+  document.getElementById('authSubmitBtn').addEventListener('click', doAction);
   const pwInput = document.getElementById('authPasswordInput');
-  if (pwInput) pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') isLogin ? doLogin() : doRegister(); });
+  if (pwInput) pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') doAction(); });
   const unInput = document.getElementById('authUsernameInput');
   if (unInput) { unInput.addEventListener('keydown', e => { if (e.key === 'Enter') pwInput && pwInput.focus(); }); unInput.focus(); }
+}
+
+function showAuthError(msg) {
+  const errEl = document.getElementById('authError');
+  if (errEl) errEl.textContent = msg;
+}
+
+function doAuthAction(event, username, password) {
+  const errEl = document.getElementById('authError');
+  if (errEl) errEl.textContent = '';
+  if (!socket || !socket.connected) {
+    showAuthError(LANG === 'en' ? 'Server not connected — please wait a moment and retry.' : 'Server nicht verbunden — bitte kurz warten und nochmal versuchen.');
+    return;
+  }
+  const btn = document.getElementById('authSubmitBtn');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+  socket.emit(event, { username, password }, (res) => {
+    if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+    if (!res) { showAuthError(LANG === 'en' ? 'No response from server.' : 'Keine Antwort vom Server.'); return; }
+    if (res.error) { showAuthError(t('auth_err_' + res.error) || res.error); return; }
+    AUTH_TOKEN = res.token;
+    CURRENT_USER = res.username;
+    localStorage.setItem(AUTH_TOKEN_KEY, AUTH_TOKEN);
+    closeOverlay();
+    updateAuthUI();
+    if (!document.getElementById('lobby').classList.contains('hidden')) renderLobbyHome();
+  });
 }
 
 function doLogin() {
   const username = (document.getElementById('authUsernameInput')?.value || '').trim();
   const password = document.getElementById('authPasswordInput')?.value || '';
-  const errEl = document.getElementById('authError');
-  if (errEl) errEl.textContent = '';
-  if (!socket) return;
-  socket.emit('auth_login', { username, password }, (res) => {
-    if (res.error) { if (errEl) errEl.textContent = t('auth_err_' + res.error) || res.error; return; }
-    AUTH_TOKEN = res.token;
-    CURRENT_USER = res.username;
-    localStorage.setItem(AUTH_TOKEN_KEY, AUTH_TOKEN);
-    closeOverlay();
-    updateAuthUI();
-    if (document.getElementById('lobby').classList.contains('hidden') === false) renderLobbyHome();
-  });
+  doAuthAction('auth_login', username, password);
 }
 
 function doRegister() {
   const username = (document.getElementById('authUsernameInput')?.value || '').trim();
   const password = document.getElementById('authPasswordInput')?.value || '';
-  const errEl = document.getElementById('authError');
-  if (errEl) errEl.textContent = '';
-  if (!socket) return;
-  socket.emit('auth_register', { username, password }, (res) => {
-    if (res.error) { if (errEl) errEl.textContent = t('auth_err_' + res.error) || res.error; return; }
-    AUTH_TOKEN = res.token;
-    CURRENT_USER = res.username;
-    localStorage.setItem(AUTH_TOKEN_KEY, AUTH_TOKEN);
-    closeOverlay();
-    updateAuthUI();
-    if (document.getElementById('lobby').classList.contains('hidden') === false) renderLobbyHome();
-  });
+  doAuthAction('auth_register', username, password);
 }
 
 function doLogout() {

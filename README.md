@@ -12,7 +12,10 @@ Ein vollständiges Wizard-Kartenspiel im Browser — Solo gegen KI oder Multipla
 - **Multiplayer** — Echtzeit-Mehrspieler über Socket.io ohne Firebase oder externe Dienste
 - **Late-Join** — Neue Spieler können einem laufenden Spiel beitreten und einen KI-Platz übernehmen
 - **Tischchat** — Integrierter Echtzeit-Chat während des Spiels
-- **Highscore** — Bestenliste für Solo-Partien (localStorage)
+- **Benutzerkonto (optional)** — Optionale Registrierung für browserübergreifende Spielstände und Hall of Fame
+- **Cloud-Spielstand** — Eingeloggte Nutzer speichern ihren Fortschritt serverseitig und können auf jedem Gerät weiterspielen
+- **Hall of Fame** — Serverweite Bestenliste; beim Sieg als eingeloggter Nutzer automatisch eingetragen
+- **Highscore** — Lokale Bestenliste für Gäste (localStorage)
 - **Responsive** — Funktioniert auf Desktop und Mobilgeräten
 
 ## Screenshots
@@ -69,15 +72,33 @@ pm2 start server.js --name vaticinium
 pm2 save
 ```
 
+## Benutzerkonto
+
+Ein Konto ist **optional** — das Spiel funktioniert ohne Registrierung vollständig.
+
+**Ohne Konto (Gast):**
+- Solo-Spiele laufen normal
+- Spielstand wird im Browser-localStorage gespeichert
+- Kein Eintrag in der Hall of Fame
+
+**Mit Konto:**
+- Spielstand wird serverseitig gespeichert (browserübergreifend)
+- Beim Start eines Solo-Spiels wird der neuere Speicherstand (Server vs. lokal) angeboten
+- Beim Sieg wird der Highscore automatisch in die Hall of Fame eingetragen
+- Passwörter werden mit PBKDF2 (100.000 Iterationen, SHA-256, individueller Salt) gehasht
+
+Konten werden über den `👤 Konto`-Button in der Lobby erstellt. Tokens werden in `localStorage` gespeichert und bleiben über Browser-Neustarts erhalten.
+
 ## Projektstruktur
 
 ```
 vaticinium/
-├── server.js        — Node.js-Server: Spiellogik, Socket.io, Tischverwaltung
+├── server.js        — Node.js-Server: Spiellogik, Socket.io, Auth, Tischverwaltung
 ├── package.json
+├── data/            — Persistente Daten (users.json, saves.json, hall_of_fame.json)
 ├── docs/            — Screenshots
 └── public/
-    └── wizard.html  — Single-Page-App: Rendering, Solo-Logik, UI
+    └── wizard.html  — Single-Page-App: Rendering, Solo-Logik, Auth-UI
 ```
 
 ## Multiplayer-Architektur

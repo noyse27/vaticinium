@@ -1192,6 +1192,7 @@ function shuffleSeatsOffline() {
 /* ---------- Multiplayer-Status ---------- */
 let MY_SEAT = 0;
 let MODE = 'offline';
+let _cardPlayLock = false;
 let TABLE_CODE = null;
 let IS_HOST = false;
 let CLIENT_ID = null;
@@ -2200,6 +2201,7 @@ function renderBidPanel() {
 }
 
 function renderPlayerHand() {
+  _cardPlayLock = false;
   const el = document.getElementById('playerHand');
   const hand = state.hands[MY_SEAT];
 
@@ -2227,10 +2229,11 @@ function renderPlayerHand() {
   if (canPlay) {
     el.querySelectorAll('.card.playable').forEach(elCard => {
       elCard.addEventListener('click', () => {
+        if (_cardPlayLock) return;
+        _cardPlayLock = true;
         const idx = parseInt(elCard.dataset.index, 10);
         if (MODE === 'online') {
           if (socket) socket.emit('action', { type: 'play', cardIndex: idx });
-          // Karten sofort deaktivieren bis state_update kommt
           el.querySelectorAll('.card.playable').forEach(c => {
             c.classList.remove('playable');
             c.classList.add('disabled');
